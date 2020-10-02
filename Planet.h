@@ -143,9 +143,11 @@ private:
     double getIllumination( const vl::fvec3& sun, const vl::fvec3& p );
 
 
-    double angleTo2( const vl::fvec3& v1, const vl::fvec3& v2, const vl::fvec3& n );
+    static double angleTo2( const vl::fvec3& v1, const vl::fvec3& v2, const vl::fvec3& n );
 
-    double getBearing3( const vl::fvec3& v1, const vl::fvec3& v2 );
+    static double getBearing3( const vl::fvec3& v1, const vl::fvec3& v2 );
+
+    static double distanceToLine( const vl::fvec3& l, const vl::fvec3& p );
 };
 
 

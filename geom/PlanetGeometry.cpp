@@ -116,7 +116,7 @@ float PlanetGeometry::distCol( float dist ) {
 
 void PlanetGeometry::colorCell( const Planet::cell& cell, vl::fvec4 rgb, vl::fvec4*& v ) {
     if ( cell.point == m_planet.plates[cell.plate].cell ) {
-        rgb *= 1.1;
+        rgb *= 1.25;
     }
     if ( m_picking && m_highlight != cell.point ) {
         rgb /= 2;

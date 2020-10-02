@@ -70,9 +70,9 @@ protected:
     std::set<vl::EKey> m_pressedKeys;
 
     // generator parameters
-    numericParameter<int> m_pointCount = 65536;
+    numericParameter<int> m_pointCount = 4096;//65536;
     numericParameter<float> m_jitter = 13.9f;
-    numericParameter<int> m_plateCount = 114;
+    numericParameter<int> m_plateCount = 4;//114;
     numericParameter<int> m_moisture = 0;
     parameter<bool> m_useCentroids = true;
     parameter<bool> m_normalizeCentroids = true;
@@ -83,13 +83,13 @@ protected:
     numericParameter<float> m_axialTilt = 23.5f;
 
     numericParameter<int> m_renderMode = 3;
-    numericParameter<int> m_wireFrameRenderMode = 1;
+    numericParameter<int> m_wireFrameRenderMode = 2;
     numericParameter<int> m_pointsRenderMode = 0;
     numericParameter<int> m_ringsRenderMode = 0;
     numericParameter<int> m_cellsRenderMode = 0;
     numericParameter<int> m_stereoFactor = 0;
     parameter<bool> m_renderCentroids = false;
-    parameter<bool> m_renderPlateVectors = false;
+    parameter<bool> m_renderPlateVectors = true;
 
     parameter<bool> m_pickingActive = true;
     numericParameter<vl::ivec2> m_mousePosition = vl::ivec2();

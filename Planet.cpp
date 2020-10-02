@@ -367,7 +367,11 @@ void Planet::generatePlates( int plateCount ) {
             if ( neighbor.plate == -1 ) {
                 neighbor.plate = c.plate;
                 neighbor.elevation = c.elevation;
-                neighbor.dir = getDir( points[neighbor.point], plates[c.plate].axisOfRotation, 5 );
+                // direction of cell will lower when distance to axis of rotation gets lower
+                neighbor.dir = getDir(
+                        points[neighbor.point],
+                        plates[c.plate].axisOfRotation,
+                        5 ) * distanceToLine(points[neighbor.point], plates[c.plate].axisOfRotation);
                 //auto it1 = std::next(todo.begin(), rnd((int)todo.size()));
                 //todo.insert( it1, edge.neighbor );
                 todo.push_back( edge.neighbor );
@@ -837,6 +841,14 @@ void Planet::updateTemperature( float delta ) {
             cell.temperature -= delta * 0.5f;
         }
     }
+}
+
+double Planet::distanceToLine( const vl::fvec3& l, const vl::fvec3& p ) {
+    // https://stackoverflow.com/a/52792014
+    // calculate point x on line l that's closest to p
+    vl::fvec3 x = l * vl::dot( p, l );
+    // get distance between x and p
+    return (p - x).length();
 }
 
 
