@@ -12,7 +12,15 @@ rnd( 0 )
     generateColorMap();
 }
 
-void Planet::generate( int pointCount, float jitter, bool centroid, bool normalize, int plateCount, float collisionThreshold, float moisture ) {
+void Planet::generate(
+        int pointCount,
+        float jitter,
+        bool centroid,
+        bool normalize,
+        int plateCount,
+        float collisionThreshold,
+        float moisture,
+        float ocean ) {
 
     Profiler profiler( "SphereGenerator" );
     N = pointCount;
@@ -22,6 +30,10 @@ void Planet::generate( int pointCount, float jitter, bool centroid, bool normali
     points.resize( N );
 
     generatePoints( points, jitter );
+    for ( int i = 0; i < points.size(); ++i ) {
+        kdTree.add( points[i], i );
+    }
+    //kdTree.print();
     calculateCoords();
     profiler( "points" );
 
@@ -37,7 +49,7 @@ void Planet::generate( int pointCount, float jitter, bool centroid, bool normali
     generateCells( moisture );
     profiler( "cells" );
 
-    generatePlates( plateCount );
+    generatePlates( plateCount, ocean );
     profiler( "plates" );
 
     applyPlateMotion( collisionThreshold );
@@ -280,7 +292,7 @@ void Planet::generateCells( float moisture ) {
     }
 }
 
-void Planet::generatePlates( int plateCount ) {
+void Planet::generatePlates( int plateCount, float ocean ) {
     // reset rng
     rnd = math::rng( 0 );
 
@@ -300,7 +312,6 @@ void Planet::generatePlates( int plateCount ) {
         vl::fvec3 axis;
         float distance = 0.0f;
         float rot;
-        float elevation = 0;
         int cell = -1;
     };
     std::vector<plateOrigin> origins( plateCount );
@@ -322,19 +333,27 @@ void Planet::generatePlates( int plateCount ) {
 
         // now rotate V around V2
         origin.axis = v2;
-
-        origin.elevation = rnd( -1.0f, 1.0f );
     }
 
     // now find the nearest region for each platePoint (FIXME: this slows down FAST)
-    for ( const auto& cell : cells ) {
+    /*for ( const auto& cell : cells ) {
         for ( auto& origin : origins ) {
             if ( origin.cell == -1 || (origin.v - points[cell.point]).lengthSquared() < origin.distance ) {
                 origin.cell = cell.point;
                 origin.distance = (origin.v - points[cell.point]).lengthSquared();
             }
         }
+    }*/
+    for ( auto& origin : origins ) {
+        tree* t = kdTree.find( origin.v );
+        for ( const auto& p : t->points ) {
+            if ( origin.cell == -1 || (origin.v - p.first).lengthSquared() < origin.distance ) {
+                origin.cell = p.second;
+                origin.distance = (origin.v - p.first).lengthSquared();
+            }
+        }
     }
+
 
     std::deque<int> todo;
     plates.clear();
@@ -342,14 +361,13 @@ void Planet::generatePlates( int plateCount ) {
         if ( plate.cell != -1 && cells[plate.cell].plate == -1 ) {
             cells[plate.cell].plate = todo.size();
             cells[plate.cell].dir = getDir( points[cells[plate.cell].point], plate.axis, 5 );
-            cells[plate.cell].elevation = plate.elevation;
-
             todo.push_back( plate.cell );
             plates.push_back(
                     { plate.v,
                       static_cast<std::size_t>(plate.cell),
                       plate.axis,
-                      plate.elevation });
+                      false,
+                      1 });
         }
     }
 
@@ -366,6 +384,7 @@ void Planet::generatePlates( int plateCount ) {
             cell& neighbor = cells[edge.neighbor];
             if ( neighbor.plate == -1 ) {
                 neighbor.plate = c.plate;
+                plates[c.plate].cellCount++;
                 neighbor.elevation = c.elevation;
                 // direction of cell will lower when distance to axis of rotation gets lower
                 neighbor.dir = getDir(
@@ -383,6 +402,23 @@ void Planet::generatePlates( int plateCount ) {
             edge.plateBorder = cells[edge.neighbor].plate != cell.plate;
         }
     }
+
+    std::size_t cellCount = 0;
+    std::size_t oceanCount = 0;
+    for( auto& plate : plates ) {
+        if ( float(oceanCount + plate.cellCount) / cells.size() <= ocean ) {
+            plate.oceanic = true;
+            oceanCount += plate.cellCount;
+        }
+        cellCount += plate.cellCount;
+    }
+    printf( "Assigned %d of %d cells to %d plates (%d oceanic, %d%%)\n",
+            cellCount,
+            cells.size(),
+            plates.size(),
+            oceanCount,
+            (oceanCount * 100) / cellCount );
+
 }
 
 vl::fvec3 Planet::getDir( const vl::fvec3& v, float degrees ) {
@@ -446,9 +482,9 @@ void Planet::applyPlateMotion( float collisionThreshold ) {
         }
         if ( r != -1) {
             bool collided = bestCompression > collisionThreshold * nScale;
-            if ( plates[c.plate].elevation < 0 && plates[cells[r].plate].elevation < 0 ) {
+            if ( plates[c.plate].oceanic && plates[cells[r].plate].oceanic ) {
                 (collided ? coastlines : oceans).insert( c.point );
-            } else if ( plates[c.plate].elevation >= 0 && plates[cells[r].plate].elevation >= 0 ) {
+            } else if ( !plates[c.plate].oceanic && !plates[cells[r].plate].oceanic ) {
                 if ( collided ) {
                     mountains.insert( c.point );
                 }
@@ -459,7 +495,7 @@ void Planet::applyPlateMotion( float collisionThreshold ) {
     }
 
     for ( auto& plate : plates ) {
-        ((plate.elevation < 0) ? oceans : coastlines ).insert( plate.cell );
+        ((plate.oceanic) ? oceans : coastlines ).insert( plate.cell );
     }
 
     std::set<std::size_t> stopCells;
@@ -845,6 +881,8 @@ void Planet::updateTemperature( float delta ) {
 
 double Planet::distanceToLine( const vl::fvec3& l, const vl::fvec3& p ) {
     // https://stackoverflow.com/a/52792014
+    // we can simplify this by a LOT since our line always runs through the origin
+    // and both l and p are already normalized
     // calculate point x on line l that's closest to p
     vl::fvec3 x = l * vl::dot( p, l );
     // get distance between x and p

@@ -84,7 +84,8 @@ add_executable(
         geom/WorldAxis.h
         geom/GradientRingGeometry.cpp
         geom/GradientRingGeometry.h
-        util/parameter.h)
+        util/parameter.h
+        util/tree.h)
 
 if (MINGW)
     target_link_libraries(PlanetGenerator ${VL_LIBRARIES} ${OPENGL_LIBRARIES} -static)

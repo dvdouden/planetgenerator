@@ -139,7 +139,8 @@ void MainWindow::initEvent() {
     m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_stereoFactor, 0, 100, 1, vl::Key_RightBracket, vl::Key_LeftBracket, false )));
     m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_collisionThreshold, 0.0f, 4.0f, 0.05f, vl::Key_Period, vl::Key_Comma, true )));
     m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_pickingActive, vl::Key_Space, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_moisture, 0, 100, 1, vl::Key_Quote, vl::Key_Semicolon, false )));
+    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_moisture, 0, 100, 1, vl::Key_Quote, vl::Key_Semicolon, true )));
+    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_ocean, 0, 100, 1, vl::Key_J, vl::Key_H, true )));
     m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_axialTilt, 0.0f, 180.0f, 0.5f, vl::Key_Home, vl::Key_End, false )));
     m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_timeOfYear, 0.0f, 1.0f, 0.0625f, vl::Key_L, vl::Key_K, false )));
     m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_timeOfDayPaused, vl::Key_T, false )));
@@ -266,6 +267,11 @@ void MainWindow::updateScene() {
     }
 
     if ( m_pickingActive() && m_renderMode() == 3 && m_mousePosition.dirty && !m_geometryInvalid ) {
+        // TODO: use ray intersection based on kdTree of sphere;
+        // calculate intersection point of ray with sphere
+        // fetch the leaf of tree that contains that point
+        // test the cells that are in the leaf
+
         m_mousePosition.clear();
         Profiler profiler( "Picking" );
         int x = m_mousePosition().x();
@@ -390,7 +396,15 @@ void MainWindow::updateGeometry() {
     Profiler profiler( "Renderer" );
 
     if ( m_geometryInvalid ) {
-        m_planet.generate( m_pointCount(), m_jitter(), m_useCentroids(), m_normalizeCentroids(), m_plateCount(), m_collisionThreshold(), m_moisture() / 100.0f );
+        m_planet.generate(
+                m_pointCount(),
+                m_jitter(),
+                m_useCentroids(),
+                m_normalizeCentroids(),
+                m_plateCount(),
+                m_collisionThreshold(),
+                m_moisture() / 100.0f,
+                m_ocean() / 100.0f );
 
         m_borderLines->markGeometryInvalid();
         m_cellLines->markGeometryInvalid();
@@ -480,6 +494,7 @@ void MainWindow::updateText() {
                          "Jitter: %n\n"
                          "CollisionThreshold: %n\n"
                          "Moisture: %n\n"
+                         "Ocean: %n\n"
                          "AxialTilt: %n\n"
                          "TimeOfYear: %n\n"
                          "TimeOfDay: %n\n"
@@ -509,7 +524,8 @@ void MainWindow::updateText() {
                   "compression: %n\n"
                   "neighbor: %n\n"
                   "plate: %n\n"
-                  "plate elevation: %n\n"
+                  "plate type: %s\n"
+                  "plate cells: %n\n"
                   "dMnt: %n\n"
                   "dCst: %n\n"
                   "dOcn: %n\n"
@@ -534,6 +550,7 @@ void MainWindow::updateText() {
             << m_jitter()
             << m_collisionThreshold()
             << m_moisture()
+            << m_ocean()
             << m_axialTilt()
             << m_timeOfYear()
             << m_timeOfDay();
@@ -563,7 +580,8 @@ void MainWindow::updateText() {
                 << c.compression
                 << c.r
                 << c.plate
-                << m_planet.plates[c.plate].elevation
+                << (m_planet.plates[c.plate].oceanic ? "oceanic" : "continental")
+                << m_planet.plates[c.plate].cellCount
             << c.dMnt
             << c.dCst
             << c.dOcn

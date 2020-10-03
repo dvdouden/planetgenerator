@@ -6,12 +6,21 @@
 
 #include "util/fmath.h"
 #include "util/Profiler.h"
+#include "util/tree.h"
 
 class Planet {
 public:
     Planet();
 
-    void generate( int n, float jitter, bool centroid, bool normalize, int plates, float collisionThreshold, float moisture );
+    void generate(
+            int n,
+            float jitter,
+            bool centroid,
+            bool normalize,
+            int plates,
+            float collisionThreshold,
+            float moisture,
+            float ocean );
 
     struct edge {
         std::size_t a;
@@ -47,7 +56,8 @@ public:
         vl::vec3 origin;
         std::size_t cell;
         vl::fvec3 axisOfRotation;
-        float elevation;
+        bool oceanic;
+        std::size_t cellCount;
     };
 
     std::vector<vl::fvec3> points;
@@ -60,6 +70,7 @@ public:
     std::size_t N;
     double nScale;
     float axialTilt;
+    tree kdTree;
 
     static vl::dvec2 toStereo( const vl::fvec3& v );
 
@@ -81,6 +92,7 @@ public:
     std::vector<vl::fvec2> getAnnualIllumination(
             std::size_t cell,
             std::size_t samples );
+
 
 private:
     void generatePoints( std::vector<vl::fvec3>& pts, float jitter );
@@ -109,7 +121,7 @@ private:
 
     void generateCells( float moisture );
 
-    void generatePlates( int plateCount );
+    void generatePlates( int plateCount, float ocean );
 
     void applyPlateMotion( float collisionThreshold );
 
