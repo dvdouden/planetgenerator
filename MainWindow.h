@@ -71,9 +71,9 @@ protected:
     std::set<vl::EKey> m_pressedKeys;
 
     // generator parameters
-    numericParameter<int> m_pointCount = 65536;
+    numericParameter<int> m_pointCount = 512;//65536;
     numericParameter<float> m_jitter = 13.9f;
-    numericParameter<int> m_plateCount = 114;
+    numericParameter<int> m_plateCount = 100;//5;//114;
     numericParameter<int> m_moisture = 0;
     numericParameter<int> m_ocean = 70;
     parameter<bool> m_useCentroids = true;

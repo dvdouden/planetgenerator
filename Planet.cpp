@@ -53,7 +53,7 @@ void Planet::generate(
     generatePlates( plateCount, ocean );
     profiler( "plates" );
 
-    applyPlateMotion( collisionThreshold );
+    applyPlateMotion2( collisionThreshold );
     profiler( "plate movement" );
 
     updateCellColors();
@@ -290,6 +290,7 @@ void Planet::generateCells( float moisture ) {
             }
         }
         cell.edges = std::move( sortedEdges );
+        cell.plateBorder = false;
     }
 }
 
@@ -362,6 +363,10 @@ void Planet::generatePlates( int plateCount, float ocean ) {
         if ( plate.cell != -1 && cells[plate.cell].plate == -1 ) {
             cells[plate.cell].plate = todo.size();
             cells[plate.cell].dir = getDir( points[cells[plate.cell].point], plate.axis, 5 );
+            cells[plate.cell].bearing = getBearing3( points[cells[plate.cell].point], getDir(
+                    points[cells[plate.cell].point],
+                    plate.axis,
+                    5 ));
             todo.push_back( plate.cell );
             plates.push_back(
                     { plate.v,
@@ -392,6 +397,10 @@ void Planet::generatePlates( int plateCount, float ocean ) {
                         points[neighbor.point],
                         plates[c.plate].axisOfRotation,
                         5 ) * distanceToLine(points[neighbor.point], plates[c.plate].axisOfRotation);
+                neighbor.bearing = getBearing3( points[neighbor.point], getDir(
+                        points[neighbor.point],
+                        plates[c.plate].axisOfRotation,
+                        5 ));
                 //auto it1 = std::next(todo.begin(), rnd((int)todo.size()));
                 //todo.insert( it1, edge.neighbor );
                 todo.push_back( edge.neighbor );
@@ -401,6 +410,9 @@ void Planet::generatePlates( int plateCount, float ocean ) {
     for ( auto& cell : cells ) {
         for ( auto& edge : cell.edges ) {
             edge.plateBorder = cells[edge.neighbor].plate != cell.plate;
+            if ( edge.plateBorder ) {
+                cell.plateBorder = true;
+            }
         }
     }
 
@@ -547,6 +559,56 @@ std::vector<float> Planet::assignDistanceField( const std::set<size_t>& seeds, c
     }
 
     return std::move( distances );
+}
+
+void Planet::applyPlateMotion2( float threshold ) {
+    // https://www.youtube.com/watch?v=x_Tn66PvTn4
+    // determine boundary type
+    // 1. divergent (moving apart)
+    //  a. oceanic-oceanic: volcanoes, ridge, rift valley, volcanic islands
+    //  b. continental-continental: rift valley, volcanoes
+    //  c. oceanic-continental: new ocean floor
+    // 2. convergent (moving towards each other)
+    //  a. oceanic-continental: lower oceanic (subduction zone, oceanic trench), rise continental (mountains/volcanoes)
+    //  b. oceanic-oceanic: same, but under water
+    //  c. continental-continental: tall mountains
+    // 3. transform (grind)
+    //  a. continental-continental: earthquakes
+    //  b. oceanic-continental: earthquakes
+    //  c. oceanic-oceanic: earthquakes
+    for ( auto& cell : cells ) {
+        if ( !cell.plateBorder ) {
+            continue;
+        }
+        for ( auto& edge : cell.edges ) {
+            if ( !edge.plateBorder ) {
+                continue;
+            }
+            // total compression/expansion is influenced by:
+            // the amount of movement
+            // whether the edge is perpendicular to the direction of movement
+            // the length of the edge
+            // the movement of the neighboring cell
+
+            // calculate edge factor, 1.0 for perpendicular, 0 for parallel
+            edge.edgeFactor = 1.0f - fabs( vl::dot( (centers[edge.a] - centers[edge.b]).normalize(), cell.dir ) );
+
+            // calculate the length of the edge, take scale into account
+            edge.lengthFactor = edge.length / nScale;
+
+            // calculate neighbor direction factor
+            edge.neighborDirFactor = -vl::dot( cells[edge.neighbor].dir, cell.dir );
+
+            // take original magnitude
+            float f = cell.dir.length();
+            // increase/decrease by amount of force acted by neighbor cell
+            f = f + f * edge.neighborDirFactor;
+            // multiply by edge factor and length factor
+            f *= edge.edgeFactor * edge.lengthFactor;
+            edge.force = f;
+        }
+    }
+
 }
 
 void Planet::generateColorMap() {

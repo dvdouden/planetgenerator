@@ -30,6 +30,10 @@ public:
         float length;
         float bearing;
         bool plateBorder;
+        float edgeFactor;
+        float lengthFactor;
+        float neighborDirFactor;
+        float force;
     };
 
     struct cell {
@@ -50,6 +54,8 @@ public:
         float annualIllumination;
         float temperature;
         std::size_t r;
+        bool plateBorder;
+        float bearing;
     };
 
     struct plate {
@@ -160,6 +166,8 @@ private:
     static double getBearing3( const vl::fvec3& v1, const vl::fvec3& v2 );
 
     static double distanceToLine( const vl::fvec3& l, const vl::fvec3& p );
+
+    void applyPlateMotion2( float threshold );
 };
 
 

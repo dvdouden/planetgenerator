@@ -495,6 +495,7 @@ void MainWindow::updateText() {
                   "lat: %n\n"
                   "lon: %n\n"
                   "elevation: %n\n"
+                  "bearing: %n\n"
                   "compression: %n\n"
                   "neighbor: %n\n"
                   "plate: %n\n"
@@ -507,7 +508,9 @@ void MainWindow::updateText() {
                   "annual: %n\n"
                   "temp: %n\n";
         for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
-            format += "n: %n b: %n\n";
+            if ( e.plateBorder ) {
+                format += "n: %n edgeF: %n lenF: %n neighF: %n F: %n\n";
+            }
         }
         format += "\n";
     }
@@ -551,6 +554,7 @@ void MainWindow::updateText() {
                 << -(m_planet.coords[c.point].x() * vl::dRAD_TO_DEG - 90)
                 << (m_planet.coords[c.point].y() * vl::dRAD_TO_DEG)
                 << c.elevation
+                << c.bearing * vl::dRAD_TO_DEG
                 << c.compression
                 << c.r
                 << c.plate
@@ -564,7 +568,9 @@ void MainWindow::updateText() {
             << c.temperature;
 
         for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
-            say << e.neighbor << e.bearing * vl::dRAD_TO_DEG;
+            if ( e.plateBorder ) {
+                say << e.neighbor << e.edgeFactor << e.lengthFactor << e.neighborDirFactor << e.force;
+            }
         }
     }
 
