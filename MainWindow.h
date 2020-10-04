@@ -5,11 +5,11 @@
 #include <vlGraphics/Applet.hpp>
 #include <vlGraphics/Array.hpp>
 #include <vlGraphics/Geometry.hpp>
-#include <vlGraphics/RayIntersector.hpp>
 #include <vlGraphics/Text.hpp>
 
 #include "util/parameter.h"
 #include "Planet.h"
+#include "PlanetIntersector.h"
 #include "Graph.h"
 #include "geom/BorderLineGeometry.h"
 #include "geom/CellLineGeometry.h"
@@ -25,6 +25,9 @@
 class MainWindow : public vl::Applet {
 
 public:
+    MainWindow() :
+    vl::Applet(),
+    m_planetIntersector( m_planet ) {}
 
 // called once after the OpenGL window has been opened
     void initEvent() override;
@@ -64,8 +67,6 @@ protected:
     vl::ref<vl::Text> m_text;
     vl::ref<vl::Graph> m_dailyGraph;
     vl::ref<vl::Graph> m_annualGraph;
-
-    vl::RayIntersector m_intersector;
 
     std::set<vl::EKey> m_pressedKeys;
 
@@ -110,6 +111,7 @@ protected:
 
 
     Planet m_planet;
+    PlanetIntersector m_planetIntersector;
     vl::fvec3 m_sunRay;
 
     int m_triCount = 0;

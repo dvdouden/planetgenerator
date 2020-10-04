@@ -22,7 +22,7 @@ struct tree {
         delete right;
     }
 
-    tree* find( const vl::fvec3& v ) {
+    const tree* find( const vl::fvec3& v ) const {
         if ( axis == -1 ) {
             return this;
         }
@@ -82,5 +82,16 @@ struct tree {
         } else {
             ( v[axis] >= median ? right : left )->add(v, idx);
         }
+    }
+
+    void clear() {
+        delete left;
+        delete right;
+        left = nullptr;
+        right = nullptr;
+        axis = -1;
+        median = 0;
+        points.clear();
+        aabb = vl::AABB();
     }
 };

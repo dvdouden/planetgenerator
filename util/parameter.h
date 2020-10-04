@@ -13,8 +13,10 @@ struct parameter {
             value(val ) { }
 
     parameter<T>& operator=( T newValue ) {
-        value = newValue;
-        dirty = true;
+        if ( value != newValue ) {
+            value = newValue;
+            dirty = true;
+        }
         return *this;
     }
 

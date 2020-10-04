@@ -103,9 +103,7 @@ void MainWindow::initEvent() {
     m_centroidsGeometry = new CentroidsGeometry( m_planet );
     m_sceneManager->tree()->addActor( m_centroidsGeometry.get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "Centroids" );
     m_planetGeometry = new PlanetGeometry( m_planet );
-    auto* planetActor = m_sceneManager->tree()->addActor( m_planetGeometry.get(), m_effect.get(), m_planetTransform.get() );
-    planetActor->setObjectName( "Planet" );
-    m_intersector.actors()->push_back( planetActor );
+    m_sceneManager->tree()->addActor( m_planetGeometry.get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "Planet" );
     m_planetRingGeometries.push_back( new RingGeometry );
     m_sceneManager->tree()->addActor( m_planetRingGeometries.back().get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "ArcticCircle" );
     m_planetRingGeometries.push_back( new RingGeometry );
@@ -267,40 +265,16 @@ void MainWindow::updateScene() {
     }
 
     if ( m_pickingActive() && m_renderMode() == 3 && m_mousePosition.dirty && !m_geometryInvalid ) {
-        // TODO: use ray intersection based on kdTree of sphere;
-        // calculate intersection point of ray with sphere
-        // fetch the leaf of tree that contains that point
-        // test the cells that are in the leaf
-
         m_mousePosition.clear();
         Profiler profiler( "Picking" );
         int x = m_mousePosition().x();
         int y = m_mousePosition().y();
-        vl::Camera* camera = rendering()->as<vl::Rendering>()->camera();
         y = openglContext()->height() - y;
-        vl::Ray ray = camera->computeRay(x,y);
-        m_intersector.setFrustum( camera->computeRayFrustum( x,y ) );
-        m_intersector.setRay(ray);
-        m_intersector.intersect();
-        // run intersection test
-        profiler("Check intersections" );
-        if (!m_intersector.intersections().empty()) {
-            // this is a bit nasty, but since we only have an index, we need to loop through all cells until we know which cell it belongs to...
-            int idx = m_intersector.intersections()[0]->as<vl::RayIntersectionGeometry>()->triangleIndex();
-
-            int c = 0;
-            for ( const auto& cell : m_planet.cells ) {
-                if ( idx >= c && idx < c + cell.edges.size() ) {
-                    if ( m_highlight() != cell.point ) {
-                        m_redraw = true;
-                        m_highlight = cell.point;
-                    }
-                    break;
-                }
-                c += cell.edges.size();
-            }
-            profiler("find cell");
+        m_highlight = m_planetIntersector.intersect( rendering()->as<vl::Rendering>()->camera()->computeRay(x,y) );
+        if ( m_highlight.dirty ) {
+            m_redraw = true;
         }
+        profiler("Check intersections" );
         m_pickingTimes = profiler.results();
     }
     double currentTime = vl::Time::currentTime();

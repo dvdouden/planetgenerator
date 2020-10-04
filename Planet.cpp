@@ -27,6 +27,7 @@ void Planet::generate(
     nScale = 2.0 / sqrt( (double)N );
     rnd = math::rng(0 );
     points.clear();
+    kdTree.clear();
     points.resize( N );
 
     generatePoints( points, jitter );
@@ -345,7 +346,7 @@ void Planet::generatePlates( int plateCount, float ocean ) {
         }
     }*/
     for ( auto& origin : origins ) {
-        tree* t = kdTree.find( origin.v );
+        const tree* t = kdTree.find( origin.v );
         for ( const auto& p : t->points ) {
             if ( origin.cell == -1 || (origin.v - p.first).lengthSquared() < origin.distance ) {
                 origin.cell = p.second;
