@@ -506,10 +506,12 @@ void MainWindow::updateText() {
                   "dOcn: %n\n"
                   "illum: %n\n"
                   "annual: %n\n"
-                  "temp: %n\n";
+                  "temp: %n\n"
+                  "convergent: %n\n"
+                  "divergent: %n\n";
         for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
             if ( e.plateBorder ) {
-                format += "n: %n edgeF: %n lenF: %n neighF: %n F: %n\n";
+                format += "n: %n edgeF: %n lenF: %n neighF: %n F: %n type: %s\n";
             }
         }
         format += "\n";
@@ -565,11 +567,13 @@ void MainWindow::updateText() {
             << c.dOcn
             << c.illumination
             << c.annualIllumination
-            << c.temperature;
+            << c.temperature
+            << c.convergentForce
+            << c.divergentForce;
 
         for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
             if ( e.plateBorder ) {
-                say << e.neighbor << e.edgeFactor << e.lengthFactor << e.neighborDirFactor << e.force;
+                say << e.neighbor << e.edgeFactor << e.lengthFactor << e.neighborDirFactor << e.force << (e.convergent ? "convergent" : "divergent" );
             }
         }
     }

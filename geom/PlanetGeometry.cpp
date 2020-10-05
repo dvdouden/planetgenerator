@@ -64,6 +64,7 @@ void PlanetGeometry::updateColors() {
         case 6: colFunc = &PlanetGeometry::colFunc6; break;
         case 7: colFunc = &PlanetGeometry::colFunc7; break;
         case 8: colFunc = &PlanetGeometry::colFunc8; break;
+        case 9: colFunc = &PlanetGeometry::colFunc9; break;
         default: colFunc = &PlanetGeometry::colFuncDefault; break;
     }
 
@@ -149,6 +150,14 @@ vl::fvec4 PlanetGeometry::colFunc8( const Planet::cell& cell ) {
         return vl::fvec4( 1.0, 1.0 - t, 1.0 - t, 1 );
     } else {
         return vl::fvec4( 1.0 + t, 1.0 + t, 1.0, 1 );
+    }
+}
+
+vl::fvec4 PlanetGeometry::colFunc9( const Planet::cell& cell ) {
+    if ( cell.convergentForce >= cell.divergentForce ) {
+        return vl::fvec4( 1.0, 1.0 - cell.convergentForce, 1.0 - cell.convergentForce, 1 );
+    } else {
+        return vl::fvec4( 1.0 - cell.divergentForce, 1.0 - cell.divergentForce, 1.0, 1 );
     }
 }
 

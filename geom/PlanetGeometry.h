@@ -70,6 +70,7 @@ private:
     void colorCell( const Planet::cell& cell, vl::fvec4 rgb, vl::fvec4*& cols );
 
 
+    vl::fvec4 colFunc9( const Planet::cell& cell );
 };
 
 

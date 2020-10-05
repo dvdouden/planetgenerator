@@ -580,6 +580,10 @@ void Planet::applyPlateMotion2( float threshold ) {
         if ( !cell.plateBorder ) {
             continue;
         }
+        float convergentForce = 0;
+        float convergentLength = 0;
+        float divergentForce = 0;
+        float divergentLength = 0;
         for ( auto& edge : cell.edges ) {
             if ( !edge.plateBorder ) {
                 continue;
@@ -599,6 +603,9 @@ void Planet::applyPlateMotion2( float threshold ) {
             // calculate neighbor direction factor
             edge.neighborDirFactor = -vl::dot( cells[edge.neighbor].dir, cell.dir );
 
+            // calculate whether movement is divergent or convergent
+            edge.convergent = vl::dot( points[cells[edge.neighbor].point] - points[cell.point], cell.dir ) >= 0;
+
             // take original magnitude
             float f = cell.dir.length();
             // increase/decrease by amount of force acted by neighbor cell
@@ -606,6 +613,49 @@ void Planet::applyPlateMotion2( float threshold ) {
             // multiply by edge factor and length factor
             f *= edge.edgeFactor * edge.lengthFactor;
             edge.force = f;
+
+            if ( edge.convergent ) {
+                convergentForce += f;
+                convergentLength += edge.length;
+            } else {
+                divergentForce += f;
+                divergentLength += edge.length;
+            }
+        }
+        if ( divergentLength == 0 && convergentLength == 0 ) {
+            continue;
+        }
+        // TODO: take multiple plates (and types) into account
+        float totalLength = divergentLength + convergentLength;
+        cell.divergentForce = divergentForce * (divergentLength / totalLength);
+        cell.convergentForce = convergentForce * (convergentLength / totalLength);
+
+        if ( cell.convergentForce >= cell.divergentForce ) {
+            if ( plates[cell.plate].oceanic ) {
+                bool otherContinental = false;
+                for ( auto& edge : cell.edges ) {
+                    if ( !edge.plateBorder ) {
+                        continue;
+                    }
+                    if ( edge.convergent && !plates[edge.neighbor].oceanic ) {
+                        otherContinental = true;
+                        break;
+                    }
+                }
+                if ( otherContinental ) {
+                    // lower
+                    cell.elevation = -cell.convergentForce;
+                } else {
+                    // raise
+                    cell.elevation = cell.convergentForce;
+                }
+            } else {
+                // raise
+                cell.elevation = cell.convergentForce;
+            }
+        } else {
+            // lower
+            cell.elevation = -cell.divergentForce;
         }
     }
 

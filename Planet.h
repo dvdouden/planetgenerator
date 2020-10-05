@@ -34,6 +34,7 @@ public:
         float lengthFactor;
         float neighborDirFactor;
         float force;
+        bool convergent;
     };
 
     struct cell {
@@ -56,6 +57,8 @@ public:
         std::size_t r;
         bool plateBorder;
         float bearing;
+        float divergentForce;
+        float convergentForce;
     };
 
     struct plate {

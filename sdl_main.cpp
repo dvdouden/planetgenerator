@@ -2,7 +2,6 @@
 #include <vlCore/VisualizationLibrary.hpp>
 #include <vlSDL/SDLWindow.hpp>
 #include <vlCore/Colors.hpp>
-#include "MouseListener.h"
 #include "MainWindow.h"
 
 using namespace vl;
@@ -26,8 +25,6 @@ int main( int argc, char* args[] ) {
     MainWindow* w = new MainWindow;
     vl::ref<vl::Applet> applet = w;
     applet->initialize();
-    //applet->setTrackball( new MouseListener( w ) );
-    //applet->trackball()->setCamera( applet->rendering()->as<vl::Rendering>()->camera() );
 
     /* create a native SDL window */
     ref<vlSDL::SDLWindow> sdl_window = new vlSDL::SDLWindow;
@@ -41,7 +38,7 @@ int main( int argc, char* args[] ) {
     int y = 0;
     int width = 1024;
     int height = 768;
-    sdl_window->initSDLWindow( "Sphere rendering using Visualization Library", format, x, y, width, height );
+    sdl_window->initSDLWindow( "Planet rendering using Visualization Library", format, x, y, width, height );
 
     /* run SDL message loop */
     vlSDL::messageLoop();
