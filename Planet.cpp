@@ -16,8 +16,6 @@ rnd( 0 )
 }
 
 void Planet::generate() {
-    printf( "Generate\n");
-
     Profiler profiler( "SphereGenerator" );
     bool dirty = pointCount.dirty || jitter.dirty;
     if ( dirty ) {
@@ -46,13 +44,11 @@ void Planet::generate() {
     // phase 1: points, done
     if ( phase() <= 1 ) {
         lastResults = profiler.results();
-        printf( "Phase 1 done\n");
         return;
     }
 
     dirty = dirty || regenerateTriangles;
     if ( dirty ) {
-        printf( "Generate triangles\n");
         std::vector<double> stereo = getStereoPoints();
         delaunator::Delaunator d( stereo );
         triangles = std::move( d.triangles );
@@ -75,7 +71,6 @@ void Planet::generate() {
     }
     // phase 2: triangles, done
     if ( phase() == 2 ) {
-        printf( "Phase 2 done\n");
         lastResults = profiler.results();
         return;
     }
@@ -92,7 +87,6 @@ void Planet::generate() {
     // phase 3: cells, done
     if ( phase() == 3 ) {
         lastResults = profiler.results();
-        printf( "Phase 3 done\n");
         return;
     }
 
@@ -108,7 +102,6 @@ void Planet::generate() {
     }
     // phase 4: plates, done
     if ( phase() == 4 ) {
-        printf( "Phase 4 done\n");
         lastResults = profiler.results();
         return;
     }
@@ -135,7 +128,6 @@ void Planet::generate() {
     }
     // phase 5: height map, done
     if ( phase() == 5 ) {
-        printf( "Phase 5 done\n");
         lastResults = profiler.results();
         return;
     }
@@ -427,9 +419,6 @@ void Planet::generatePlates( int plateCount, float ocean ) {
     for ( auto& origin : origins ) {
         const tree* t = kdTree.find( origin.v );
         for ( const auto& p : t->points ) {
-            if ( p.second == 59480 ) {
-                printf( "%f, %f, %f near %f, %f, %f?\n", origin.v.x(), origin.v.y(), origin.v.z(), p.first.x(), p.first.y(), p.first.z() );
-            }
             if ( origin.cell == -1 || (origin.v - p.first).lengthSquared() < origin.distance ) {
                 origin.cell = p.second;
                 origin.distance = (origin.v - p.first).lengthSquared();
