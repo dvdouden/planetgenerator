@@ -6,7 +6,7 @@ void CellLineGeometry::createGeometry() {
     int edgeCount = 0;
     for ( const auto& cell : m_planet.cells ) {
         for ( const auto& edge : cell.edges ) {
-            if ( !edge.plateBorder ) {
+            if ( shouldDrawEdge( cell, edge ) ) {
                 ++edgeCount;
             }
         }
@@ -19,7 +19,7 @@ void CellLineGeometry::updateGeometry() {
     int edgeIdx = 0;
     for ( const auto& cell : m_planet.cells ) {
         for ( const auto& edge : cell.edges ) {
-            if ( !edge.plateBorder ) {
+            if ( shouldDrawEdge( cell, edge ) ) {
                 verts->at(edgeIdx++) = m_planet.centers[edge.a];
                 verts->at(edgeIdx++) = m_planet.centers[edge.b];
             }
@@ -37,10 +37,14 @@ void CellLineGeometry::updateColors() {
     for ( const auto& cell : m_planet.cells ) {
         float illumination = cell.illumination * 0.95f + 0.05f;
         for ( const auto& edge : cell.edges ) {
-            if ( !edge.plateBorder ) {
+            if ( shouldDrawEdge( cell, edge ) ) {
                 cols->at( edgeIdx++ ) = vl::fvec4( illumination, illumination, illumination, 1 );
                 cols->at( edgeIdx++ ) = vl::fvec4( illumination, illumination, illumination, 1 );
             }
         }
     }
+}
+
+bool CellLineGeometry::shouldDrawEdge( const Planet::cell& cell, const Planet::edge& edge ) const {
+    return (m_includeBorders || !edge.plateBorder) && edge.neighbor > cell.point;
 }

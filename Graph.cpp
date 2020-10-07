@@ -41,6 +41,9 @@ using namespace vl;
 //-----------------------------------------------------------------------------
 void Graph::render_Implementation(const Actor* actor, const Shader*, const Camera* camera, OpenGLContext* gl_context) const
 {
+    if ( !mEnabled ) {
+        return;
+    }
     gl_context->bindVAS(NULL, false, false);
 
     // Lighting can be enabled or disabled.

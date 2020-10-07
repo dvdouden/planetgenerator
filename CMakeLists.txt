@@ -87,7 +87,11 @@ add_executable(
         util/parameter.h
         util/tree.h
         PlanetIntersector.cpp
-        PlanetIntersector.h)
+        PlanetIntersector.h
+        util/PerlinNoise.h
+        util/PerlinNoise.cpp
+        geom/PlateOriginGeometry.cpp
+        geom/PlateOriginGeometry.h)
 
 if (MINGW)
     target_link_libraries(PlanetGenerator ${VL_LIBRARIES} ${OPENGL_LIBRARIES} -static)

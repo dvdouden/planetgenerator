@@ -7,20 +7,14 @@
 #include "util/fmath.h"
 #include "util/Profiler.h"
 #include "util/tree.h"
+#include "util/parameter.h"
+#include "util/PerlinNoise.h"
 
 class Planet {
 public:
     Planet();
 
-    void generate(
-            int n,
-            float jitter,
-            bool centroid,
-            bool normalize,
-            int plates,
-            float collisionThreshold,
-            float moisture,
-            float ocean );
+    void generate();
 
     struct edge {
         std::size_t a;
@@ -76,10 +70,45 @@ public:
     std::vector<std::size_t> halfedges;
     std::vector<cell> cells;
     std::vector<plate> plates;
-    std::size_t N;
+
+    numericParameter<int> phase = {1, "phase" };
+    numericParameter<int> pointCount = { 65536, "points" };
+    numericParameter<float> jitter = {13.9f, "jitter" };
+    numericParameter<int> plateCount = { 114, "plates" };
+    numericParameter<int> moisture = {0, "moisture" };
+    numericParameter<int> ocean = { 70, "ocean" };
+    boolParameter useCentroids = {true, "centroids" };
+    boolParameter normalizeCentroids = { true, "normalize" };
+    numericParameter<float> collisionThreshold = {1.70f, "collision threshold" };
+    numericParameter<float> axialTilt = { 23.5f, "axial tilt" };
+    numericParameter<float> noiseIntensity = { 0.1f, "noise intensity" };
+    numericParameter<int> noiseOctaves = { 4, "noise octaves" };
+    numericParameter<float> noiseScale = { 2.0f, "noise scale" };
+
     double nScale;
-    float axialTilt;
     tree kdTree;
+
+    bool pointsDirty = false;
+    bool trianglesDirty = false;
+    bool cellsDirty = false;
+    bool platesDirty = false;
+    bool heightMapDirty = false;
+    bool cellColorsDirty = false;
+
+    bool regenerateTriangles = true;
+    bool regenerateCells = true;
+    bool regeneratePlates = true;
+    bool regenerateHeightMap = true;
+    bool regenerateColors = true;
+
+    void clearDirtyFlags() {
+        pointsDirty = false;
+        trianglesDirty = false;
+        cellsDirty = false;
+        platesDirty = false;
+        heightMapDirty = false;
+        cellColorsDirty = false;
+    }
 
     static vl::dvec2 toStereo( const vl::fvec3& v );
 
@@ -171,6 +200,10 @@ private:
     static double distanceToLine( const vl::fvec3& l, const vl::fvec3& p );
 
     void applyPlateMotion2( float threshold );
+
+    std::vector<float> assignDistanceField2( const std::set<size_t>& seeds, const std::set<size_t>& stops, float factor );
+
+    float createNoise( const vl::fvec3& v, PerlinNoise<float>& noise );
 };
 
 

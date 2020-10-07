@@ -1,10 +1,13 @@
 #include <vlCore/Matrix4.hpp>
 #include <cmath>
 #include <deque>
+#include <map>
 #include <queue>
 #include "Planet.h"
 #include "delaunator.h"
 #include "IndexedTessellator.h"
+
+#include "util/PerlinNoise.h"
 
 Planet::Planet() :
 rnd( 0 )
@@ -12,52 +15,130 @@ rnd( 0 )
     generateColorMap();
 }
 
-void Planet::generate(
-        int pointCount,
-        float jitter,
-        bool centroid,
-        bool normalize,
-        int plateCount,
-        float collisionThreshold,
-        float moisture,
-        float ocean ) {
+void Planet::generate() {
+    printf( "Generate\n");
 
     Profiler profiler( "SphereGenerator" );
-    N = pointCount;
-    nScale = 2.0 / sqrt( (double)N );
-    rnd = math::rng(0 );
-    points.clear();
-    kdTree.clear();
-    points.resize( N );
+    bool dirty = pointCount.dirty || jitter.dirty;
+    if ( dirty ) {
+        // regenerate points, and every following step
+        nScale = 2.0 / sqrt( (double)pointCount() );
+        rnd = math::rng( 0 );
+        points.clear();
+        kdTree.clear();
+        points.resize( pointCount() );
 
-    generatePoints( points, jitter );
-    for ( int i = 0; i < points.size(); ++i ) {
-        kdTree.add( points[i], i );
+        generatePoints( points, jitter() );
+        profiler( "points" );
+        for ( int i = 0; i < points.size(); ++i ) {
+            kdTree.add( points[i], i );
+        }
+        kdTree.rebalance();
+        profiler( "kdTree" );
+
+        calculateCoords();
+        pointsDirty = true;
+        regenerateTriangles = true;
+        pointCount.clear();
+        jitter.clear();
+        profiler( "coords" );
     }
-    //kdTree.print();
-    calculateCoords();
-    profiler( "points" );
+    // phase 1: points, done
+    if ( phase() <= 1 ) {
+        lastResults = profiler.results();
+        printf( "Phase 1 done\n");
+        return;
+    }
 
-    std::vector<double> stereo = getStereoPoints();
-    delaunator::Delaunator d( stereo );
-    triangles = std::move( d.triangles );
-    halfedges = std::move( d.halfedges );
+    dirty = dirty || regenerateTriangles;
+    if ( dirty ) {
+        printf( "Generate triangles\n");
+        std::vector<double> stereo = getStereoPoints();
+        delaunator::Delaunator d( stereo );
+        triangles = std::move( d.triangles );
+        halfedges = std::move( d.halfedges );
 
-    fillSouthPole();
-    profiler( "triangles" );
+        fillSouthPole();
+        profiler( "triangles" );
+        trianglesDirty = true;
+        regenerateTriangles = false;
+        regenerateCells = true;
+    }
 
-    generateCenters( centroid, normalize );
-    generateCells( moisture );
-    profiler( "cells" );
+    dirty = dirty || useCentroids.dirty || normalizeCentroids.dirty;
+    if ( dirty ) {
+        generateCenters( useCentroids(), normalizeCentroids() );
+        useCentroids.clear();
+        normalizeCentroids.clear();
+        profiler( "center points" );
+        regenerateCells = true;
+    }
+    // phase 2: triangles, done
+    if ( phase() == 2 ) {
+        printf( "Phase 2 done\n");
+        lastResults = profiler.results();
+        return;
+    }
 
-    generatePlates( plateCount, ocean );
-    profiler( "plates" );
+    dirty = dirty || moisture.dirty || regenerateCells;
+    if ( dirty ) {
+        generateCells( moisture() / 100.0f );
+        profiler( "cells" );
+        moisture.clear();
+        cellsDirty = true;
+        regenerateCells = false;
+        regeneratePlates = true;
+    }
+    // phase 3: cells, done
+    if ( phase() == 3 ) {
+        lastResults = profiler.results();
+        printf( "Phase 3 done\n");
+        return;
+    }
 
-    applyPlateMotion2( collisionThreshold );
-    profiler( "plate movement" );
+    dirty = dirty || plateCount.dirty || ocean.dirty || regeneratePlates;
+    if ( dirty ) {
+        generatePlates( plateCount(), ocean() / 100.0f );
+        profiler( "plates" );
+        plateCount.clear();
+        ocean.clear();
+        platesDirty = true;
+        regeneratePlates = false;
+        regenerateHeightMap = true;
+    }
+    // phase 4: plates, done
+    if ( phase() == 4 ) {
+        printf( "Phase 4 done\n");
+        lastResults = profiler.results();
+        return;
+    }
 
-    updateCellColors();
-    profiler( "colors" );
+    dirty = dirty || collisionThreshold.dirty || noiseScale.dirty || noiseOctaves.dirty || noiseIntensity.dirty | regenerateHeightMap;
+    if ( dirty ) {
+        applyPlateMotion2( collisionThreshold() );
+        profiler( "plate movement" );
+        collisionThreshold.clear();
+        noiseScale.clear();
+        noiseOctaves.clear();
+        noiseIntensity.clear();
+        heightMapDirty = true;
+        regenerateHeightMap = false;
+        regenerateColors = true;
+    }
+
+    dirty = dirty || regenerateColors;
+    if ( dirty ) {
+        updateCellColors();
+        profiler( "colors" );
+        cellColorsDirty = true;
+        regenerateColors = false;
+    }
+    // phase 5: height map, done
+    if ( phase() == 5 ) {
+        printf( "Phase 5 done\n");
+        lastResults = profiler.results();
+        return;
+    }
 
     lastResults = profiler.results();
 }
@@ -298,6 +379,12 @@ void Planet::generatePlates( int plateCount, float ocean ) {
     // reset rng
     rnd = math::rng( 0 );
 
+    // reset cells
+    for ( auto& cell : cells ) {
+        cell.plate = -1;
+    }
+    plates.clear();
+
     // pick random regions
 
     // now we could just pick any random region, but instead we're going to pick a number of random points
@@ -337,18 +424,12 @@ void Planet::generatePlates( int plateCount, float ocean ) {
         origin.axis = v2;
     }
 
-    // now find the nearest region for each platePoint (FIXME: this slows down FAST)
-    /*for ( const auto& cell : cells ) {
-        for ( auto& origin : origins ) {
-            if ( origin.cell == -1 || (origin.v - points[cell.point]).lengthSquared() < origin.distance ) {
-                origin.cell = cell.point;
-                origin.distance = (origin.v - points[cell.point]).lengthSquared();
-            }
-        }
-    }*/
     for ( auto& origin : origins ) {
         const tree* t = kdTree.find( origin.v );
         for ( const auto& p : t->points ) {
+            if ( p.second == 59480 ) {
+                printf( "%f, %f, %f near %f, %f, %f?\n", origin.v.x(), origin.v.y(), origin.v.z(), p.first.x(), p.first.y(), p.first.z() );
+            }
             if ( origin.cell == -1 || (origin.v - p.first).lengthSquared() < origin.distance ) {
                 origin.cell = p.second;
                 origin.distance = (origin.v - p.first).lengthSquared();
@@ -356,9 +437,7 @@ void Planet::generatePlates( int plateCount, float ocean ) {
         }
     }
 
-
     std::deque<int> todo;
-    plates.clear();
     for ( auto& plate : origins ) {
         if ( plate.cell != -1 && cells[plate.cell].plate == -1 ) {
             cells[plate.cell].plate = todo.size();
@@ -561,7 +640,22 @@ std::vector<float> Planet::assignDistanceField( const std::set<size_t>& seeds, c
     return std::move( distances );
 }
 
+
+
 void Planet::applyPlateMotion2( float threshold ) {
+
+    for ( auto& cell : cells ) {
+        if ( plates[cell.plate].oceanic ) {
+            cell.elevation = -0.5f;
+        } else {
+            cell.elevation = 0.5f;
+        }
+    }
+
+    std::set<std::size_t> coastlines;
+    std::set<std::size_t> mountains;
+    std::set<std::size_t> oceans;
+
     // https://www.youtube.com/watch?v=x_Tn66PvTn4
     // determine boundary type
     // 1. divergent (moving apart)
@@ -625,7 +719,7 @@ void Planet::applyPlateMotion2( float threshold ) {
         if ( divergentLength == 0 && convergentLength == 0 ) {
             continue;
         }
-        // TODO: take multiple plates (and types) into account
+
         float totalLength = divergentLength + convergentLength;
         cell.divergentForce = divergentForce * (divergentLength / totalLength);
         cell.convergentForce = convergentForce * (convergentLength / totalLength);
@@ -637,28 +731,104 @@ void Planet::applyPlateMotion2( float threshold ) {
                     if ( !edge.plateBorder ) {
                         continue;
                     }
-                    if ( edge.convergent && !plates[edge.neighbor].oceanic ) {
+                    if ( edge.convergent && !plates[cells[edge.neighbor].plate].oceanic ) {
                         otherContinental = true;
                         break;
                     }
                 }
                 if ( otherContinental ) {
                     // lower
-                    cell.elevation = -cell.convergentForce;
+                    cell.elevation -= cell.convergentForce / 4.0f;
                 } else {
                     // raise
-                    cell.elevation = cell.convergentForce;
+                    cell.elevation += cell.convergentForce / 4.0f;
                 }
             } else {
                 // raise
-                cell.elevation = cell.convergentForce;
+                cell.elevation += cell.convergentForce / 2.0f;
             }
         } else {
             // lower
-            cell.elevation = -cell.divergentForce;
+            cell.elevation -= cell.divergentForce / 2.0f;
+        }
+        if ( cell.elevation > 1.0f ) {
+            cell.elevation = 1.0f;
+        } else if ( cell.elevation < -1.0f ) {
+            cell.elevation = -1.0f;
+        }
+
+        if ( plates[cell.plate].oceanic ) {
+            oceans.insert( cell.point );
+        } else {
+            mountains.insert( cell.point );
         }
     }
 
+
+    std::set<std::size_t> stopCells;
+    stopCells.insert( mountains.begin(), mountains.end() );
+    stopCells.insert( oceans.begin(), oceans.end() );
+
+    //std::vector<float> distMountains = assignDistanceField2( stopCells, stopCells );
+    std::vector<float> distMountains = assignDistanceField2( mountains, stopCells, threshold );
+    std::vector<float> distOceans = assignDistanceField2( oceans, stopCells, threshold );
+
+    for ( auto& cell : cells ) {
+        cell.dMnt = distMountains[cell.point];
+        cell.dOcn = distOceans[cell.point];
+    }
+
+    PerlinNoise<float> noise;
+    for ( auto& cell : cells ) {
+        const vl::fvec3& v = points[cell.point];
+        cell.elevation += createNoise( v, noise );
+    }
+}
+
+std::vector<float> Planet::assignDistanceField2( const std::set<size_t>& seeds, const std::set<size_t>& stops, float factor ) {
+    std::vector<float> distances( cells.size(), std::numeric_limits<float>::infinity() );
+
+    rnd = math::rng( 0 );
+    std::set<size_t> done;
+
+    struct item {
+        float elevation;
+        float count;
+    };
+    std::set<std::size_t> queue;
+    for ( std::size_t seed : seeds ) {
+        queue.insert( seed );
+        done.insert( seed );
+    }
+
+    float weight = (sqrtf( pointCount() ) / 64.0f) * factor;
+
+    std::map<std::size_t, item> meta;
+    while ( !queue.empty() ) {
+        for ( auto& i : queue ) {
+            cell& c = cells[i];
+            for ( const auto& edge : c.edges ) {
+                if ( done.find( edge.neighbor ) == done.end() ) {
+                    auto& j = meta[ edge.neighbor ];
+                    if ( j.count == 0 ) {
+                        j.elevation = cells[edge.neighbor].elevation;
+                        j.count += 1;
+                    }
+                    j.elevation += c.elevation * weight;
+                    j.count += weight;
+                }
+            }
+        }
+        queue.clear();
+        for ( auto& i : meta ) {
+            queue.insert( i.first );
+            done.insert( i.first );
+            cells[i.first].elevation = i.second.elevation / i.second.count;
+            distances[i.first] = cells[i.first].elevation;
+        }
+        meta.clear();
+    }
+    return distances;
 }
 
 void Planet::generateColorMap() {
@@ -720,7 +890,7 @@ std::vector<vl::fvec2> Planet::getDailyIllumination(
     std::vector<vl::fvec2> illumination( samples );
 
     double radTOY = (timeOfYear + 0.5) * 2 * vl::dPi; // offset by half to start in winter for northern hemisphere
-    double sunLatitude = axialTilt * cos( radTOY );
+    double sunLatitude = axialTilt() * cos( radTOY );
     double cosLat = cos( sunLatitude * vl::dDEG_TO_RAD );
     double sinLat = sin( sunLatitude * vl::dDEG_TO_RAD );
     vl::fvec3 p = points[cells[cell].point];
@@ -746,7 +916,7 @@ std::vector<vl::fvec2> Planet::getAnnualIllumination(
     for ( std::size_t i = 0; i < samples; ++i ) {
         double timeOfYear = (double)i / samples;
         double radTOY = (timeOfYear + 0.5) * 2 * vl::dPi; // offset by half to start in winter for northern hemisphere
-        double sunLatitude = axialTilt * cos( radTOY );
+        double sunLatitude = axialTilt() * cos( radTOY );
         double cosLat = cos( sunLatitude * vl::dDEG_TO_RAD );
         double sinLat = sin( sunLatitude * vl::dDEG_TO_RAD );
 
@@ -776,7 +946,7 @@ void Planet::calcAnnualIllumination( std::size_t yearSamples, std::size_t daySam
     for ( std::size_t i = 0; i < yearSamples; ++i ) {
         float timeOfYear = (float)i / yearSamples;
         double radTOY = (timeOfYear + 0.5) * 2 * vl::dPi;
-        double sunLatitude = axialTilt * cos( radTOY );
+        double sunLatitude = axialTilt() * cos( radTOY );
         double cosLat = cos( sunLatitude * vl::dDEG_TO_RAD );
         double sinLat = sin( sunLatitude * vl::dDEG_TO_RAD );
         for ( std::size_t j = 0; j < daySamples; ++j ) {
@@ -1000,6 +1170,17 @@ double Planet::distanceToLine( const vl::fvec3& l, const vl::fvec3& p ) {
     vl::fvec3 x = l * vl::dot( p, l );
     // get distance between x and p
     return (p - x).length();
+}
+
+float Planet::createNoise( const vl::fvec3& v, PerlinNoise<float>& perlin ) {
+    float noise = 0;
+    float scale = noiseScale();
+    for ( int i = 0; i < noiseOctaves(); ++i ) {
+        noise += perlin.noise( v.x() * scale, v.y() * scale, v.z() * scale );
+        scale /= 2.0f;
+    }
+
+    return noiseIntensity() * noise;
 }
 
 

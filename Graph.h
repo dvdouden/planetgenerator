@@ -61,7 +61,7 @@ namespace vl
     public:
         Graph(): mColor(1,1,1,1), mBorderColor(0,0,0,1), mBackgroundColor(1,1,1,1), mOutlineColor(0,0,0,1), mShadowColor(0,0,0,0.5f), mShadowVector(2,-2), mMarkerColor(1,1,1,1),
                 mMarkerPosition(0),mInterlineSpacing(5), mAlignment(AlignBottom|AlignLeft), mViewportAlignment(AlignBottom|AlignLeft), mMargin(5), mMode(Graph2D),
-                mBorderEnabled(false), mBackgroundEnabled(false), mOutlineEnabled(false), mShadowEnabled(false), mMarkerEnabled(false)
+                mBorderEnabled(false), mBackgroundEnabled(false), mOutlineEnabled(false), mShadowEnabled(false), mMarkerEnabled(false), mEnabled(true)
         {
             VL_DEBUG_SET_OBJECT_NAME()
         }
@@ -160,6 +160,14 @@ namespace vl
             mHeight = height;
         }
 
+        void setEnabled( bool enabled ) {
+            mEnabled = enabled;
+        }
+
+        bool enabled() const {
+            return mEnabled;
+        }
+
     protected:
         void renderGraph(const Actor*, const Camera* camera, const fvec4& color, const fvec2& offset) const;
         void renderBackground(const Actor* actor, const Camera* camera) const;
@@ -191,5 +199,6 @@ namespace vl
         vl::fvec2 mMax;
         unsigned int mWidth;
         unsigned int mHeight;
+        bool mEnabled;
     };
 }

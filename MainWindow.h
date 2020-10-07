@@ -21,6 +21,7 @@
 #include "geom/CentroidsGeometry.h"
 #include "geom/WorldAxis.h"
 #include "geom/GradientRingGeometry.h"
+#include "geom/PlateOriginGeometry.h"
 
 class MainWindow : public vl::Applet {
 
@@ -70,43 +71,33 @@ protected:
 
     std::set<vl::EKey> m_pressedKeys;
 
-    // generator parameters
-    numericParameter<int> m_pointCount = 512;//65536;
-    numericParameter<float> m_jitter = 13.9f;
-    numericParameter<int> m_plateCount = 100;//5;//114;
-    numericParameter<int> m_moisture = 0;
-    numericParameter<int> m_ocean = 70;
-    parameter<bool> m_useCentroids = true;
-    parameter<bool> m_normalizeCentroids = true;
-    numericParameter<float> m_collisionThreshold = 1.70f;
+    numericParameter<float> m_timeOfDay = { 0, "time of day" };
+    numericParameter<float> m_timeOfYear = { 0.0f, "time of year" };
 
-    numericParameter<float> m_timeOfDay = 0;
-    numericParameter<float> m_timeOfYear = 0.0f;
-    numericParameter<float> m_axialTilt = 23.5f;
+    numericParameter<int> m_wireFrameRenderMode = {2, "wireframe render mode" };
+    numericParameter<int> m_pointsRenderMode = { 0, "points render mode" };
+    numericParameter<int> m_ringsRenderMode = { 0, "rings render mode" };
+    numericParameter<int> m_cellsRenderMode = { 0, "cells render mode" };
+    numericParameter<int> m_stereoFactor = { 0, "stereographic projection factor" };
+    boolParameter m_renderCentroids = { false, "render centroids" };
+    boolParameter m_renderPlateVectors = { true, "render plate vectors" };
+    boolParameter m_renderPlateOrigins = { true, "render plate origins" };
+    boolParameter m_renderPlanetAxis = { true, "render planet axis" };
 
-    numericParameter<int> m_renderMode = 3;
-    numericParameter<int> m_wireFrameRenderMode = 2;
-    numericParameter<int> m_pointsRenderMode = 0;
-    numericParameter<int> m_ringsRenderMode = 0;
-    numericParameter<int> m_cellsRenderMode = 0;
-    numericParameter<int> m_stereoFactor = 0;
-    parameter<bool> m_renderCentroids = false;
-    parameter<bool> m_renderPlateVectors = true;
+    boolParameter m_pickingActive = { true, "picking active" };
+    numericParameter<vl::ivec2> m_mousePosition = { vl::ivec2(), "mouse position" };
+    numericParameter<int> m_highlight = { -1, "highlight" };
 
-    parameter<bool> m_pickingActive = true;
-    numericParameter<vl::ivec2> m_mousePosition = vl::ivec2();
-    numericParameter<int> m_highlight = -1;
-
-    std::vector<param_ptr> m_parameters;
+    std::vector<std::vector<param_ptr>> m_parameters;
+    std::vector<std::map<vl::EKey,param_ptr>> m_keyBindings;
 
     double m_lastTime = 0;
     float m_deltaTimeOfDay = 0;
     float m_deltaTimeOfYear = 0;
-    parameter<bool> m_timeOfDayPaused = true;
-    parameter<bool> m_timeOfYearPaused = true;
+    boolParameter m_timeOfDayPaused = { true, "time of day paused" };
+    boolParameter m_timeOfYearPaused = { true, "time of year paused" };
 
     bool m_geometryInvalid = true;
-    bool m_redraw = true;
     bool m_sunPositionDirty = true;
 
 
@@ -120,7 +111,7 @@ protected:
     Profiler::resultset m_pickingTimes;
     Profiler::resultset m_lightingTimes;
 
-    vl::ref<GradientRingGeometry> sunCircle;
+    vl::ref<GradientRingGeometry> m_sunCircle;
     vl::ref<BorderLineGeometry> m_borderLines;
     vl::ref<CellLineGeometry> m_cellLines;
     vl::ref<CellVectorGeometry> m_cellVectors;
@@ -128,6 +119,7 @@ protected:
     vl::ref<TriangleGeometry> m_triangleGeometry;
     vl::ref<CentroidsGeometry> m_centroidsGeometry;
     vl::ref<PlanetGeometry> m_planetGeometry;
+    vl::ref<PlateOriginGeometry> m_plateOriginGeometry;
     vl::ref<WorldAxis> m_sunAxis;
     vl::ref<WorldAxis> m_planetAxis;
     std::vector<vl::ref<RingGeometry>> m_planetRingGeometries;

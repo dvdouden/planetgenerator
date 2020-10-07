@@ -46,39 +46,6 @@ struct tree {
         if ( axis == -1 ) {
             points.push_back( std::make_pair(v, idx) );
             aabb.addPoint( v );
-            if ( points.size() > 1000 ) {
-                // became too large, find axis with largest difference
-                axis = -1;
-                if ( aabb.width() >= aabb.height() && aabb.width() >= aabb.depth() ) {
-                    axis = 0;
-                } else if ( aabb.height() >= aabb.width() && aabb.height() >= aabb.depth() ) {
-                    axis = 1;
-                } else {
-                    axis = 2;
-                }
-                // sort points by axis
-                struct axisLess {
-                    axisLess( int axis ) :
-                            axis( axis ) {}
-
-                    int axis;
-
-                    bool operator()(const point& a, const point& b) const
-                    {
-                        return a.first[axis] < b.first[axis];
-                    }
-                };
-
-                std::sort(points.begin(), points.end(), axisLess(axis) );
-                median = points[500].first[axis];
-                //printf( "Split on axis %d at median %f\n", axis, median );
-                left = new tree;
-                right = new tree;
-                for ( int i = 0; i < points.size(); ++i ) {
-                    ( i < 500 ? left : right )->add( points[i].first, points[i].second );
-                }
-                points.clear();
-            }
         } else {
             ( v[axis] >= median ? right : left )->add(v, idx);
         }
@@ -93,5 +60,45 @@ struct tree {
         median = 0;
         points.clear();
         aabb = vl::AABB();
+    }
+
+    void rebalance() {
+        if ( points.size() > 1000 ) {
+            // became too large, find axis with largest difference
+            axis = -1;
+            if ( aabb.width() >= aabb.height() && aabb.width() >= aabb.depth() ) {
+                axis = 0;
+            } else if ( aabb.height() >= aabb.width() && aabb.height() >= aabb.depth() ) {
+                axis = 1;
+            } else {
+                axis = 2;
+            }
+            // sort points by axis
+            struct axisLess {
+                axisLess( int axis ) :
+                        axis( axis ) {}
+
+                int axis;
+
+                bool operator()(const point& a, const point& b) const
+                {
+                    return a.first[axis] < b.first[axis];
+                }
+            };
+
+            std::sort(points.begin(), points.end(), axisLess(axis) );
+            std::size_t midpoint = points.size() / 2;
+            median = points[midpoint].first[axis];
+            left = new tree;
+            right = new tree;
+            for ( int i = 0; i < points.size(); ++i ) {
+                ( i < midpoint ? left : right )->add( points[i].first, points[i].second );
+            }
+            points.clear();
+        }
+        if ( axis != -1 ) {
+            left->rebalance();
+            right->rebalance();
+        }
     }
 };

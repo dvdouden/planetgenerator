@@ -53,7 +53,6 @@ void PlanetGeometry::updateGeometry() {
 void PlanetGeometry::updateColors() {
     auto* cols = colorBuffer();
 
-
     colFunc colFunc;
     switch ( m_colorMode ) {
         case 1: colFunc = &PlanetGeometry::colFunc1; break;
@@ -66,6 +65,11 @@ void PlanetGeometry::updateColors() {
         case 8: colFunc = &PlanetGeometry::colFunc8; break;
         case 9: colFunc = &PlanetGeometry::colFunc9; break;
         default: colFunc = &PlanetGeometry::colFuncDefault; break;
+    }
+    if ( m_planet.phase() == 3 ) {
+        colFunc = &PlanetGeometry::colFunc1;
+    } else if ( m_planet.phase() == 4 ) {
+        colFunc = &PlanetGeometry::colFuncPlateColor;
     }
 
     if ( m_highlightDirty ) {
@@ -97,7 +101,7 @@ float PlanetGeometry::distCol( float dist ) {
 }
 
 void PlanetGeometry::colorCell( const Planet::cell& cell, vl::fvec4 rgb, vl::fvec4*& v ) {
-    if ( cell.point == m_planet.plates[cell.plate].cell ) {
+    if ( m_planet.phase() > 3 && cell.point == m_planet.plates[cell.plate].cell ) {
         rgb *= 1.25;
     }
     if ( m_picking && m_highlight != cell.point ) {
@@ -163,4 +167,8 @@ vl::fvec4 PlanetGeometry::colFunc9( const Planet::cell& cell ) {
 
 vl::fvec4 PlanetGeometry::colFuncDefault( const Planet::cell& cell ) {
     return vl::fvec4( m_planet.getColor( cell.elevation, cell.moisture / 100.0f ), 1 );
+}
+
+vl::fvec4 PlanetGeometry::colFuncPlateColor( const Planet::cell& cell ) {
+    return vl::fvec4( (m_planet.plates[cell.plate].origin + 1.0) / 2.0 * vl::fvec3( 1.0, 0.8, 0.9), 1.0f );
 }

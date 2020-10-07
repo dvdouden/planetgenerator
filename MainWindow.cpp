@@ -28,7 +28,7 @@ void MainWindow::initEvent() {
     m_text->setViewportAlignment( vl::AlignLeft | vl::AlignTop );
     m_text->translate( 0, -10, 0 );
     sceneManager()->tree()->addActor( m_text.get(), text_fx.get() )->setObjectName( "HUD" );
-    updateText();
+
 
     vl::ref<vl::Effect> graph_fx = new vl::Effect;
     graph_fx->shader()->enable( vl::EN_BLEND );
@@ -53,8 +53,6 @@ void MainWindow::initEvent() {
     m_annualGraph->setYMinMax( 0, 0.5f);
     m_annualGraph->setMarkerEnabled( true );
     sceneManager()->tree()->addActor( m_annualGraph.get(), graph_fx.get() )->setObjectName( "Graph" );
-
-    updateGraphs();
 
     // allocate the Transform
     m_planetTransform = new vl::Transform;
@@ -84,9 +82,9 @@ void MainWindow::initEvent() {
     m_sunAxis->setEnabled( false );
     m_sunAxis->update();
 
-    sunCircle = new GradientRingGeometry();
-    m_sceneManager->tree()->addActor( sunCircle.get(), m_effect.get(), m_sunRotationTransform.get() )->setObjectName( "Sun Path");
-    sunCircle->setEnabled( true );
+    m_sunCircle = new GradientRingGeometry();
+    m_sceneManager->tree()->addActor( m_sunCircle.get(), m_effect.get(), m_sunRotationTransform.get() )->setObjectName( "Sun Path");
+    m_sunCircle->setEnabled( true );
 
     m_sunRay = m_sunTransform->localMatrix() * vl::fvec3( 1, 0, 0);
 
@@ -104,6 +102,8 @@ void MainWindow::initEvent() {
     m_sceneManager->tree()->addActor( m_centroidsGeometry.get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "Centroids" );
     m_planetGeometry = new PlanetGeometry( m_planet );
     m_sceneManager->tree()->addActor( m_planetGeometry.get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "Planet" );
+    m_plateOriginGeometry = new PlateOriginGeometry( m_planet );
+    m_sceneManager->tree()->addActor( m_plateOriginGeometry.get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "PlateOrigins" );
     m_planetRingGeometries.push_back( new RingGeometry );
     m_sceneManager->tree()->addActor( m_planetRingGeometries.back().get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "ArcticCircle" );
     m_planetRingGeometries.push_back( new RingGeometry );
@@ -117,42 +117,139 @@ void MainWindow::initEvent() {
 
     m_planetAxis = new WorldAxis();
     m_sceneManager->tree()->addActor( m_planetAxis.get(), m_effect.get(), m_planetTransform.get() )->setObjectName( "PlanetAxis");
-    m_planetAxis->setEnabled( true );
-    m_planetAxis->update();
 
     generate();
     updateGeometry();
 
-    // set up key bindings for parameters
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_plateCount, 0, 10000, 1, vl::Key_Insert, vl::Key_Delete, true )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_jitter, 0.0f, 360.0f, 1.0f, vl::Key_Plus, vl::Key_Minus, true )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_useCentroids, vl::Key_BackSlash, true )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_normalizeCentroids, vl::Key_N, true )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_wireFrameRenderMode, 0, 9, 1, vl::Key_W, vl::Key_Q, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_pointsRenderMode, 0, 9, 1, vl::Key_P, vl::Key_O, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_cellsRenderMode, 0, 9, 1, vl::Key_R, vl::Key_E, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_ringsRenderMode, 0, 9, 1, vl::Key_X, vl::Key_Z, false )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_renderCentroids, vl::Key_C, false )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_renderPlateVectors, vl::Key_V, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_stereoFactor, 0, 100, 1, vl::Key_RightBracket, vl::Key_LeftBracket, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_collisionThreshold, 0.0f, 4.0f, 0.05f, vl::Key_Period, vl::Key_Comma, true )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_pickingActive, vl::Key_Space, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_moisture, 0, 100, 1, vl::Key_Quote, vl::Key_Semicolon, true )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<int>( m_ocean, 0, 100, 1, vl::Key_J, vl::Key_H, true )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_axialTilt, 0.0f, 180.0f, 0.5f, vl::Key_Home, vl::Key_End, false )));
-    m_parameters.emplace_back( param_ptr( new parameterBinding<float>( m_timeOfYear, 0.0f, 1.0f, 0.0625f, vl::Key_L, vl::Key_K, false )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_timeOfDayPaused, vl::Key_T, false )));
-    m_parameters.emplace_back( param_ptr( new boolParameterBinding( m_timeOfYearPaused, vl::Key_Y, false )));
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 1, vl::Key_1, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 2, vl::Key_2, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 3, vl::Key_3, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 4, vl::Key_4, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 5, vl::Key_5, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 6, vl::Key_6, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 7, vl::Key_7, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 8, vl::Key_8, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 9, vl::Key_9, false ) ) );
-    m_parameters.emplace_back( param_ptr( new constantParameterBinding<int>( m_renderMode, 0, vl::Key_0, false ) ) );
+    // set up key bindings for each mode
+    m_parameters.resize( 10, std::vector<param_ptr>() );
+    m_keyBindings.resize( 10 );
+
+    auto* modeBinding = new constantParameterBinding<int>( m_planet.phase, true );
+    modeBinding->addKey( vl::Key_1, 1 );
+    modeBinding->addKey( vl::Key_2, 2 );
+    modeBinding->addKey( vl::Key_3, 3 );
+    modeBinding->addKey( vl::Key_4, 4 );
+    modeBinding->addKey( vl::Key_5, 5 );
+    modeBinding->addKey( vl::Key_6, 6 );
+    modeBinding->addKey( vl::Key_7, 7 );
+    modeBinding->addKey( vl::Key_8, 8 );
+    modeBinding->addKey( vl::Key_9, 9 );
+    modeBinding->addKey( vl::Key_0, 0 );
+    param_ptr modePtr( modeBinding );
+
+    // set up common key bindings
+    for ( int mode = 0 ; mode < 10; ++mode ) {
+        m_parameters[mode].emplace_back( modePtr );
+    }
+
+    param_ptr pointsBinding( new repeatingParameterBinding<int>( m_planet.pointCount, 8, 1024 * 1024, 1, vl::Key_Right, vl::Key_Left, true ) );
+    param_ptr fastPointsBinding( new repeatingParameterBinding<int>( m_planet.pointCount, 8, 1024 * 1024, 10, vl::Key_Up, vl::Key_Down, true ) );
+    param_ptr reallyFastPointsBinding( new multiplyingParameterBinding<int>( m_planet.pointCount, 8, 1024 * 1024, 2, vl::Key_PageUp, vl::Key_PageDown, true ) );
+
+    param_ptr renderPlanetAxis( new boolParameterBinding( m_renderPlanetAxis, vl::Key_A, false ));
+    param_ptr jitter( new parameterBinding<float>( m_planet.jitter, 0.0f, 360.0f, 1.0f, vl::Key_Plus, vl::Key_Minus, true ));
+    param_ptr stereo( new parameterBinding<int>( m_stereoFactor, 0, 100, 1, vl::Key_RightBracket, vl::Key_LeftBracket, false ));
+    param_ptr pointsRenderMode( new parameterBinding<int>( m_pointsRenderMode, 0, 9, 1, vl::Key_P, vl::Key_O, false ));
+    param_ptr renderCentroids( new boolParameterBinding( m_renderCentroids, vl::Key_C, false ));
+    param_ptr plates( new parameterBinding<int>( m_planet.plateCount, 0, 10000, 1, vl::Key_Insert, vl::Key_Delete, true ));
+    param_ptr useCentroids( new boolParameterBinding( m_planet.useCentroids, vl::Key_BackSlash, true ));
+    param_ptr normalizeCentroids( new boolParameterBinding( m_planet.normalizeCentroids, vl::Key_N, true ));
+    param_ptr cellsRenderMode( new parameterBinding<int>( m_cellsRenderMode, 0, 9, 1, vl::Key_R, vl::Key_E, false ));
+    param_ptr wireFrameRenderMode( new parameterBinding<int>( m_wireFrameRenderMode, 0, 9, 1, vl::Key_W, vl::Key_Q, false ));
+    param_ptr ocean( new parameterBinding<int>( m_planet.ocean, 0, 100, 1, vl::Key_J, vl::Key_H, true ));
+    param_ptr renderPlateVectors( new boolParameterBinding( m_renderPlateVectors, vl::Key_V, false ));
+    param_ptr renderPlateOrigins( new boolParameterBinding( m_renderPlateOrigins, vl::Key_C, false ));
+    param_ptr collisionThreshold( new parameterBinding<float>( m_planet.collisionThreshold, 0.0f, 4.0f, 0.05f, vl::Key_Period, vl::Key_Comma, true ));
+    param_ptr pickingActive( new boolParameterBinding( m_pickingActive, vl::Key_Space, false ));
+
+    param_ptr ringsRenderMode( new parameterBinding<int>( m_ringsRenderMode, 0, 9, 1, vl::Key_X, vl::Key_Z, false ));
+    param_ptr moisture( new parameterBinding<int>( m_planet.moisture, 0, 100, 1, vl::Key_Quote, vl::Key_Semicolon, true ));
+    param_ptr axialTilt( new parameterBinding<float>( m_planet.axialTilt, 0.0f, 180.0f, 0.5f, vl::Key_Home, vl::Key_End, false ));
+    param_ptr timeOfYear( new parameterBinding<float>( m_timeOfYear, 0.0f, 1.0f, 0.0625f, vl::Key_L, vl::Key_K, false ));
+    param_ptr timeOfDayPaused( new boolParameterBinding( m_timeOfDayPaused, vl::Key_T, false ));
+    param_ptr timeOfYearPaused( new boolParameterBinding( m_timeOfYearPaused, vl::Key_Y, false ));
+
+    param_ptr noiseIntensity( new parameterBinding<float>( m_planet.noiseIntensity, 0.0f, 1.0f, 0.05f, vl::Key_Y, vl::Key_T, true ));
+    param_ptr noiseOctaves( new parameterBinding<int>( m_planet.noiseOctaves, 0, 8, 1, vl::Key_H, vl::Key_G, true ));
+    param_ptr noiseScale( new parameterBinding<float>( m_planet.noiseScale, 0.0f, 20.0f, 0.5f, vl::Key_N, vl::Key_B, true ));
+
+
+    // mode 1: points
+    m_parameters[1].emplace_back( jitter );
+    m_parameters[1].emplace_back( stereo );
+    m_parameters[1].emplace_back( pointsRenderMode );
+    m_parameters[1].emplace_back( pointsBinding );
+    m_parameters[1].emplace_back( fastPointsBinding );
+    m_parameters[1].emplace_back( reallyFastPointsBinding );
+
+    // mode 2: triangles
+    m_parameters[2].emplace_back( jitter );
+    m_parameters[2].emplace_back( stereo );
+    m_parameters[2].emplace_back( pointsBinding );
+    m_parameters[2].emplace_back( fastPointsBinding );
+    m_parameters[2].emplace_back( reallyFastPointsBinding );
+    m_parameters[2].emplace_back( renderPlanetAxis );
+
+    // mode 3: cells
+    m_parameters[3].emplace_back( jitter );
+    m_parameters[3].emplace_back( renderCentroids );
+    m_parameters[3].emplace_back( useCentroids );
+    m_parameters[3].emplace_back( normalizeCentroids );
+    m_parameters[3].emplace_back( cellsRenderMode );
+    m_parameters[3].emplace_back( wireFrameRenderMode );
+    m_parameters[3].emplace_back( pickingActive );
+    m_parameters[3].emplace_back( pointsBinding );
+    m_parameters[3].emplace_back( fastPointsBinding );
+    m_parameters[3].emplace_back( reallyFastPointsBinding );
+    m_parameters[3].emplace_back( renderPlanetAxis );
+
+    // mode 4: plates
+    m_parameters[4].emplace_back( plates );
+    m_parameters[4].emplace_back( cellsRenderMode );
+    m_parameters[4].emplace_back( wireFrameRenderMode );
+    m_parameters[4].emplace_back( ocean );
+    m_parameters[4].emplace_back( pickingActive );
+    m_parameters[4].emplace_back( renderPlateOrigins );
+    m_parameters[4].emplace_back( renderPlanetAxis );
+
+    // mode 5: tectonics / heightmap
+    m_parameters[5].emplace_back( plates );
+    m_parameters[5].emplace_back( cellsRenderMode );
+    m_parameters[5].emplace_back( wireFrameRenderMode );
+    m_parameters[5].emplace_back( renderPlateVectors );
+    m_parameters[5].emplace_back( collisionThreshold );
+    m_parameters[5].emplace_back( pickingActive );
+    m_parameters[5].emplace_back( noiseIntensity );
+    m_parameters[5].emplace_back( noiseOctaves );
+    m_parameters[5].emplace_back( noiseScale );
+    m_parameters[5].emplace_back( renderPlanetAxis );
+
+    // mode 6: climate
+    m_parameters[6].emplace_back( ringsRenderMode );
+    m_parameters[6].emplace_back( moisture );
+    m_parameters[6].emplace_back( axialTilt );
+    m_parameters[6].emplace_back( timeOfYear );
+    m_parameters[6].emplace_back( timeOfDayPaused );
+    m_parameters[6].emplace_back( timeOfYearPaused );
+    m_parameters[6].emplace_back( renderPlanetAxis );
+
+    // verify key bindings
+    for ( int i = 0; i < 10; ++i ) {
+        std::map<vl::EKey, param_ptr>& keys = m_keyBindings[i];
+        for ( auto& b : m_parameters[i] ) {
+            for ( auto key : b->getKeys() ) {
+                auto it = keys.find( key );
+                if ( it != keys.end() ) {
+                    printf( "[%d] DUPLICATE KEY BINDING for %s, already bound by %s!\n", i, b->name().c_str(), (*it).second->name().c_str() );
+                }
+                keys[key] = b;
+            }
+        }
+    }
+
+    updateText();
+    updateGraphs();
 }
 
 
@@ -170,64 +267,30 @@ void MainWindow::resizeEvent( int w, int h ) {
 void MainWindow::keyPressEvent( unsigned short ch, vl::EKey key ) {
     m_pressedKeys.insert( key );
     bool regenerate = false;
-    for ( auto& parameter : m_parameters ) {
-        if ( key == parameter->incKey ) {
-            parameter->inc();
-            regenerate = regenerate || parameter->generate;
-        } else if ( key == parameter->decKey ) {
-            parameter->dec();
-            regenerate = regenerate || parameter->generate;
-        }
+    if ( m_keyBindings[m_planet.phase()].find( key ) != m_keyBindings[m_planet.phase()].end() ) {
+        m_keyBindings[m_planet.phase()][key]->pressed( key );
+        regenerate = regenerate || m_keyBindings[m_planet.phase()][key]->generate;
     }
-    switch ( key ) {
-
-        case vl::Key_PageUp:
-            m_pointCount = m_pointCount() * 2;
-            generate();
-            break;
-
-        case vl::Key_PageDown:
-            m_pointCount = m_pointCount() / 2;
-            generate();
-            break;
-
-        default:
-            Applet::keyPressEvent( ch, key );
-            break;
+    else {
+        Applet::keyPressEvent( ch, key );
     }
 
     if ( regenerate ) {
         generate();
     }
-    m_redraw = true;
 }
 
 void MainWindow::keyPressedEvent() {
+    bool regenerate = false;
     for ( vl::EKey key : m_pressedKeys ) {
-        switch ( key ) {
-            case vl::Key_Left:
-                m_pointCount -= 1;
-                generate();
-                break;
-
-            case vl::Key_Right:
-                m_pointCount += 1;
-                generate();
-                break;
-
-            case vl::Key_Up:
-                m_pointCount += 10;
-                generate();
-                break;
-
-            case vl::Key_Down:
-                m_pointCount -= 10;
-                generate();
-                break;
-
-            default:
-                break;
+        if ( m_keyBindings[m_planet.phase()].find( key ) != m_keyBindings[m_planet.phase()].end() ) {
+            m_keyBindings[m_planet.phase()][key]->held( key );
+            regenerate = regenerate || m_keyBindings[m_planet.phase()][key]->generate;
         }
+    }
+
+    if ( regenerate ) {
+        generate();
     }
 }
 
@@ -244,7 +307,6 @@ void MainWindow::keyReleaseEvent( unsigned short ch, vl::EKey key ) {
             Applet::keyReleaseEvent( ch, key );
             break;
     }
-    m_redraw = true;
 }
 
 void MainWindow::mouseMoveEvent(int x, int y) {
@@ -264,16 +326,14 @@ void MainWindow::updateScene() {
         m_stereoFactor.clear();
     }
 
-    if ( m_pickingActive() && m_renderMode() == 3 && m_mousePosition.dirty && !m_geometryInvalid ) {
+    if ( m_pickingActive() && m_planetGeometry->isEnabled() && m_mousePosition.dirty && !m_geometryInvalid ) {
         m_mousePosition.clear();
         Profiler profiler( "Picking" );
         int x = m_mousePosition().x();
         int y = m_mousePosition().y();
         y = openglContext()->height() - y;
         m_highlight = m_planetIntersector.intersect( rendering()->as<vl::Rendering>()->camera()->computeRay(x,y) );
-        if ( m_highlight.dirty ) {
-            m_redraw = true;
-        }
+
         profiler("Check intersections" );
         m_pickingTimes = profiler.results();
     }
@@ -289,31 +349,30 @@ void MainWindow::updateScene() {
     float secondsPerDay = secondsPerYear / 365.25f;
     if ( !m_timeOfDayPaused() ) {
         m_deltaTimeOfDay = (float)deltaTime / secondsPerDay;
-        m_timeOfDay += m_deltaTimeOfDay;
+        m_timeOfDay = m_timeOfDay() + m_deltaTimeOfDay;
         m_timeOfDay = (float)modf( m_timeOfDay(), &tmp );
         m_sunPositionDirty = true;
     }
     if ( !m_timeOfYearPaused() ) {
         m_deltaTimeOfYear = (float)deltaTime / secondsPerYear;
-        m_timeOfYear += m_deltaTimeOfYear;
+        m_timeOfYear = m_timeOfYear() + m_deltaTimeOfYear;
         m_timeOfYear = (float)modf( m_timeOfYear(), &tmp );
         m_sunPositionDirty = true;
     }
 
-    if ( m_axialTilt.dirty ) {
+    if ( m_planet.axialTilt.dirty ) {
         m_sunPositionDirty = true;
-        m_planet.axialTilt = m_axialTilt();
-        m_planetRingGeometries[0]->setLatitude( 90 - m_planet.axialTilt );
-        m_planetRingGeometries[1]->setLatitude( m_planet.axialTilt );
+        m_planetRingGeometries[0]->setLatitude( 90 - m_planet.axialTilt() );
+        m_planetRingGeometries[1]->setLatitude( m_planet.axialTilt() );
         // equator doesn't change (duh)
-        m_planetRingGeometries[3]->setLatitude( -m_planet.axialTilt );
-        m_planetRingGeometries[4]->setLatitude( -90 + m_planet.axialTilt );
+        m_planetRingGeometries[3]->setLatitude( -m_planet.axialTilt() );
+        m_planetRingGeometries[4]->setLatitude( -90 + m_planet.axialTilt() );
     }
 
     if ( m_sunPositionDirty ) {
         double radTOY = (m_timeOfYear() + 0.5) * 2 *
                         vl::dPi; // add a half, we'd like the year to start with winter in the northern hemisphere
-        vl::mat4 tiltMtx = vl::mat4::getRotation( m_axialTilt(), sin( radTOY ) * vl::dRAD_TO_DEG, 0,
+        vl::mat4 tiltMtx = vl::mat4::getRotation( m_planet.axialTilt(), sin( radTOY ) * vl::dRAD_TO_DEG, 0,
                                                   cos( radTOY ) * vl::dRAD_TO_DEG );
 
         double degTOD = m_timeOfDay() * 360;
@@ -324,8 +383,7 @@ void MainWindow::updateScene() {
         m_sunRotationTransform->computeWorldMatrix();
         m_sunRay = m_sunTransform->worldMatrix() * vl::fvec3( 1, 0, 0 );
 
-        sunCircle->setLatitude( m_axialTilt() * cos( radTOY ) );
-        sunCircle->update();
+        m_sunCircle->setLatitude( m_planet.axialTilt() * cos( radTOY ) );
     }
 
     if ( (m_cellsRenderMode() == 6 || m_cellsRenderMode() == 8) && m_sunPositionDirty ) {
@@ -335,7 +393,6 @@ void MainWindow::updateScene() {
         m_planet.updateTemperature( m_deltaTimeOfDay );
         profiler( "temperature" );
         m_lightingTimes = profiler.results();
-        m_redraw = true;
     }
 
 
@@ -356,225 +413,256 @@ void MainWindow::updateScene() {
         m_highlight.clear();
     }
 
-    if ( m_redraw ) {
-        updateGeometry();
+    if ( m_renderPlanetAxis.dirty ) {
+        m_planetAxis->setEnabled( m_renderPlanetAxis() );
+        m_planetAxis->update();
+        m_renderPlanetAxis.clear();
     }
+
+    updateGeometry();
+
     updateText();
     updateGraphs();
     m_sunPositionDirty = false;
-    m_axialTilt.clear();
+    m_planet.axialTilt.clear();
 }
 
 
 void MainWindow::updateGeometry() {
     Profiler profiler( "Renderer" );
 
-    if ( m_geometryInvalid ) {
-        m_planet.generate(
-                m_pointCount(),
-                m_jitter(),
-                m_useCentroids(),
-                m_normalizeCentroids(),
-                m_plateCount(),
-                m_collisionThreshold(),
-                m_moisture() / 100.0f,
-                m_ocean() / 100.0f );
+    if ( m_planet.phase.dirty ) {
+        m_planetGeometry->markColorsDirty();
+    }
 
+    m_planet.generate();
+    m_geometryInvalid = false;
+    profiler( "generator", m_planet.lastResults );
+
+    if ( m_planet.pointsDirty ) {
+        m_pointsGeometry->markGeometryInvalid();
+    }
+    if ( m_planet.trianglesDirty ) {
+        m_triangleGeometry->markGeometryInvalid();
+        m_centroidsGeometry->markGeometryInvalid();
+    }
+    if ( m_planet.cellsDirty ) {
+        m_planetGeometry->markGeometryInvalid();
+        m_cellLines->markGeometryInvalid();
+    }
+    if ( m_planet.platesDirty ) {
         m_borderLines->markGeometryInvalid();
         m_cellLines->markGeometryInvalid();
         m_cellVectors->markGeometryInvalid();
-        m_pointsGeometry->markGeometryInvalid();
-        m_triangleGeometry->markGeometryInvalid();
-        m_centroidsGeometry->markGeometryInvalid();
-        m_planetGeometry->markGeometryInvalid();
+        m_plateOriginGeometry->markGeometryInvalid();
+        m_planetGeometry->markColorsDirty();
+    }
+    if ( m_planet.cellColorsDirty ) {
+        m_planetGeometry->markColorsDirty();
+    }
+    m_planet.clearDirtyFlags();
 
-        m_geometryInvalid = false;
+    m_pointsGeometry->setEnabled( m_planet.phase() == 1 );
+    if ( m_pointsGeometry->isEnabled() ) {
+        m_pointsGeometry->update();
+        profiler( "Points" );
     }
 
-
-    m_pointsGeometry->setEnabled( m_renderMode() == 1 );
-    m_pointsGeometry->update();
-    profiler( "Points" );
-
-    m_triangleGeometry->setEnabled( m_renderMode() == 2 );
-    m_triangleGeometry->update();
-    profiler( "Triangles" );
+    m_triangleGeometry->setEnabled( m_planet.phase() == 2 );
+    if ( m_triangleGeometry->isEnabled() ) {
+        m_triangleGeometry->update();
+        profiler( "Triangles" );
+    }
 
     m_centroidsGeometry->setEnabled( m_renderCentroids() );
-    m_centroidsGeometry->update();
-    profiler( "Centroids" );
-
-    m_borderLines->setEnabled( m_renderMode() == 3 && m_wireFrameRenderMode() > 0 );
-    m_borderLines->update();
-    profiler( "Plateborders" );
-
-    m_cellLines->setEnabled( m_renderMode() == 3 && m_wireFrameRenderMode() > 1 );
-    m_cellLines->update();
-    profiler( "Cellborders" );
-
-    m_cellVectors->setEnabled( m_renderMode() == 3 && m_renderPlateVectors() );
-    m_cellVectors->update();
-    profiler( "Cellvectors" );
-
-    m_planetGeometry->setEnabled( m_renderMode() == 3 );
-    m_planetGeometry->update();
-    profiler( "Planet" );
-
-    m_planetRingGeometries[0]->setEnabled( m_renderMode() == 3 && m_ringsRenderMode() > 1 );
-    m_planetRingGeometries[1]->setEnabled( m_renderMode() == 3 && m_ringsRenderMode() > 1 );
-    m_planetRingGeometries[2]->setEnabled( m_renderMode() == 3 && m_ringsRenderMode() > 0 );
-    m_planetRingGeometries[3]->setEnabled( m_renderMode() == 3 && m_ringsRenderMode() > 1 );
-    m_planetRingGeometries[4]->setEnabled( m_renderMode() == 3 && m_ringsRenderMode() > 1 );
-    for ( auto& ring : m_planetRingGeometries ) {
-        ring->update();
+    if ( m_centroidsGeometry->isEnabled() ) {
+        m_centroidsGeometry->update();
+        profiler( "Centroids" );
     }
-    profiler( "Rings" );
 
-    if ( m_axialTilt.dirty ) {
+    m_planetGeometry->setEnabled( m_planet.phase() >= 3 );
+    if( m_planetGeometry->isEnabled() ) {
+        m_planetGeometry->update();
+        profiler( "Planet" );
+    }
+
+    m_borderLines->setEnabled( m_planet.phase() >= 4 && m_wireFrameRenderMode() > 0 );
+    if ( m_borderLines->isEnabled() ) {
+        m_borderLines->update();
+        profiler( "Plateborders" );
+    }
+
+    m_cellLines->setIncludeBorders( m_planet.phase() == 3 );
+    m_cellLines->setEnabled( m_planetGeometry->isEnabled() && m_wireFrameRenderMode() > 1 );
+    if ( m_cellLines->isEnabled() ) {
+        m_cellLines->update();
+        profiler( "Cellborders" );
+    }
+
+    m_plateOriginGeometry->setEnabled( m_planet.phase() == 4 && m_renderPlateOrigins() );
+    if ( m_plateOriginGeometry->isEnabled() ) {
+        m_plateOriginGeometry->update();
+        profiler( "PlateOrigins" );
+    }
+
+    m_cellVectors->setEnabled( m_planet.phase() == 5 && m_renderPlateVectors() );
+    if ( m_cellVectors->isEnabled() ) {
+        m_cellVectors->update();
+        profiler( "CellVectors" );
+    }
+
+    m_sunCircle->setEnabled( m_planet.phase() == 6 );
+    if ( m_sunCircle->isEnabled() ) {
+        m_sunCircle->update();
+        profiler( "SunCircle" );
+    }
+
+
+    m_planetRingGeometries[0]->setEnabled( m_planet.phase() == 6 && m_ringsRenderMode() > 1 );
+    m_planetRingGeometries[1]->setEnabled( m_planet.phase() == 6 && m_ringsRenderMode() > 1 );
+    m_planetRingGeometries[2]->setEnabled( m_planet.phase() == 6 && m_ringsRenderMode() > 0 );
+    m_planetRingGeometries[3]->setEnabled( m_planet.phase() == 6 && m_ringsRenderMode() > 1 );
+    m_planetRingGeometries[4]->setEnabled( m_planet.phase() == 6 && m_ringsRenderMode() > 1 );
+    if ( m_planetRingGeometries[2]->isEnabled() ) {
+        for ( auto& ring : m_planetRingGeometries ) {
+            ring->update();
+        }
+        profiler( "Rings" );
+    }
+
+    if ( m_planet.axialTilt.dirty ) {
         m_planet.calcAnnualIllumination( 100, 100 );
         profiler("illumination");
     }
 
     m_renderTimes = profiler.results();
-    m_redraw = false;
 
     m_cellsRenderMode.clear();
 
-    if ( m_renderMode() == 1 ) {
+    if ( m_planet.phase() == 1 ) {
         m_triCount = 0;
-    } else if ( m_renderMode() == 2 ) {
+    } else if ( m_planet.phase() == 2 ) {
         m_triCount = m_triangleGeometry->getSize();
-    } else if ( m_renderMode() == 3 ) {
+    } else if ( m_planetGeometry->isEnabled() ) {
         m_triCount = m_planetGeometry->getSize();
     }
+    m_planet.phase.clear();
 }
 
 void MainWindow::generate() {
     m_geometryInvalid = true;
-    m_redraw = true;
 }
 
 void MainWindow::updateText() {
 
-    std::string format = "FPS %n\n"
-                         "RenderMode: %n\n"
-                         "WireframeMode: %n\n"
-                         "PointMode: %n\n"
-                         "ColorMode: %n\n"
-                         "\n"
-                         "Points: %n\n"
-                         "Plates: %n/%n\n"
-                         "Triangles: %n\n"
-                         "Jitter: %n\n"
-                         "CollisionThreshold: %n\n"
-                         "Moisture: %n\n"
-                         "Ocean: %n\n"
-                         "AxialTilt: %n\n"
-                         "TimeOfYear: %n\n"
-                         "TimeOfDay: %n\n"
-                         "\n";
-
-    for ( const auto& time : m_planet.lastResults ) {
-        format += time.first + ": %n\n";
+    std::string format = "FPS %n\n";
+    std::set<std::string> params;
+    for ( auto& p : m_parameters[m_planet.phase()] ) {
+        if ( params.find( p->name() ) == params.end() ) {
+            format += p->name() + ": " + p->format() + "\n";
+            params.insert( p->name() );
+        }
     }
     format += "\n";
+
+    format += "\n";
     for ( const auto& time : m_renderTimes ) {
-        format += time.first + ": %n\n";
+        format += time.name + ": %n\n";
+        for ( const auto& t2 : time.details ) {
+            format += std::string("  " ) + t2.name + ": %n\n";
+        }
     }
     format += "\n";
     for ( const auto& time : m_lightingTimes ) {
-        format += time.first + ": %n\n";
+        format += time.name + ": %n\n";
     }
     format += "\n";
     for ( const auto& time : m_pickingTimes ) {
-        format += time.first + ": %n\n";
+        format += time.name + ": %n\n";
     }
     format += "\n";
-    if ( m_renderMode() == 3 && m_highlight() >= 0 && m_highlight() < m_planet.cells.size() ) {
+    if ( m_planet.phase() >= 3 && m_highlight() >= 0 && m_highlight() < m_planet.cells.size() ) {
         format += "cell: %n\n"
                   "lat: %n\n"
-                  "lon: %n\n"
-                  "elevation: %n\n"
-                  "bearing: %n\n"
-                  "compression: %n\n"
-                  "neighbor: %n\n"
-                  "plate: %n\n"
-                  "plate type: %s\n"
-                  "plate cells: %n\n"
-                  "dMnt: %n\n"
-                  "dCst: %n\n"
-                  "dOcn: %n\n"
-                  "illum: %n\n"
-                  "annual: %n\n"
-                  "temp: %n\n"
-                  "convergent: %n\n"
-                  "divergent: %n\n";
-        for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
-            if ( e.plateBorder ) {
-                format += "n: %n edgeF: %n lenF: %n neighF: %n F: %n type: %s\n";
+                  "lon: %n\n";
+        if ( m_planet.phase() >= 4 ) {
+            format += "plate: %n\n"
+                      "plate type: %s\n"
+                      "plate cells: %n\n";
+        }
+        if ( m_planet.phase() >= 5 ) {
+            format += "elevation: %n\n";
+        }
+        if ( m_planet.phase() == 5 ) {
+            format += "bearing: %n\n"
+                      "convergent: %n\n"
+                      "divergent: %n\n";
+            for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
+                if ( e.plateBorder ) {
+                    format += "n: %n edgeF: %n lenF: %n neighF: %n F: %n type: %s\n";
+                }
             }
         }
+        if ( m_planet.phase() == 6 ) {
+            format += "illum: %n\n"
+                      "annual: %n\n"
+                      "temp: %n\n";
+        }
+
         format += "\n";
     }
 
     vl::Say say( format );
-    say << fps()
-        << m_renderMode()
-        << m_wireFrameRenderMode()
-        << m_pointsRenderMode()
-        << m_cellsRenderMode()
-        << m_planet.points.size()
-        << m_planet.plates.size() << m_plateCount()
-        << m_triCount
-            << m_jitter()
-            << m_collisionThreshold()
-            << m_moisture()
-            << m_ocean()
-            << m_axialTilt()
-            << m_timeOfYear()
-            << m_timeOfDay();
-
-    for ( const auto& time : m_planet.lastResults ) {
-        say << time.second;
+    say << fps();
+    params.clear();
+    for ( auto& p : m_parameters[m_planet.phase()] ) {
+        if ( params.find( p->name() ) == params.end() ) {
+            p->say( say );
+            params.insert( p->name() );
+        }
     }
 
     for ( const auto& time : m_renderTimes ) {
-        say << time.second;
+        say << time.us;
+        for ( const auto& t2 : time.details ) {
+            say << t2.us;
+        }
     }
 
     for ( const auto& time : m_lightingTimes ) {
-        say << time.second;
+        say << time.us;
     }
 
     for ( const auto& time : m_pickingTimes ) {
-        say << time.second;
+        say << time.us;
     }
-    if ( m_renderMode() == 3 && m_highlight() >= 0 && m_highlight() < m_planet.cells.size() ) {
+    if ( m_planet.phase() >= 3 && m_highlight() >= 0 && m_highlight() < m_planet.cells.size() ) {
         const auto& c = m_planet.cells[m_highlight()];
-        say
-                << c.point
-                << -(m_planet.coords[c.point].x() * vl::dRAD_TO_DEG - 90)
-                << (m_planet.coords[c.point].y() * vl::dRAD_TO_DEG)
-                << c.elevation
-                << c.bearing * vl::dRAD_TO_DEG
-                << c.compression
-                << c.r
-                << c.plate
+        say << c.point
+            << -(m_planet.coords[c.point].x() * vl::dRAD_TO_DEG - 90)
+            << (m_planet.coords[c.point].y() * vl::dRAD_TO_DEG);
+        if ( m_planet.phase() >= 4 ) {
+            say << c.plate
                 << (m_planet.plates[c.plate].oceanic ? "oceanic" : "continental")
-                << m_planet.plates[c.plate].cellCount
-            << c.dMnt
-            << c.dCst
-            << c.dOcn
-            << c.illumination
-            << c.annualIllumination
-            << c.temperature
-            << c.convergentForce
-            << c.divergentForce;
-
-        for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
-            if ( e.plateBorder ) {
-                say << e.neighbor << e.edgeFactor << e.lengthFactor << e.neighborDirFactor << e.force << (e.convergent ? "convergent" : "divergent" );
+                << m_planet.plates[c.plate].cellCount;
+        }
+        if ( m_planet.phase() >= 5 ) {
+            say << c.elevation;
+        }
+        if ( m_planet.phase() == 5 ) {
+            say << c.bearing * vl::dRAD_TO_DEG
+                << c.convergentForce
+                << c.divergentForce;
+            for ( const auto& e : m_planet.cells[m_highlight()].edges ) {
+                if ( e.plateBorder ) {
+                    say << e.neighbor << e.edgeFactor << e.lengthFactor << e.neighborDirFactor << e.force << (e.convergent ? "convergent" : "divergent" );
+                }
             }
+        }
+        if ( m_planet.phase() == 6 ) {
+            say << c.illumination
+                << c.annualIllumination
+                << c.temperature;
         }
     }
 
@@ -583,12 +671,16 @@ void MainWindow::updateText() {
 }
 
 void MainWindow::updateGraphs() {
-    if ( m_pickingActive() && m_highlight() >= 0 && m_highlight() < m_planet.cells.size() ) {
-        m_dailyGraph->setData( m_planet.getDailyIllumination( m_highlight(), m_timeOfYear(), 100 ) );
-        m_annualGraph->setData( m_planet.getAnnualIllumination( m_highlight(), 100 ) );
+    m_dailyGraph->setEnabled( m_planet.phase() == 6 );
+    m_annualGraph->setEnabled( m_planet.phase() == 6 );
+    if ( m_planet.phase() == 6 ) {
+        if ( m_pickingActive() && m_highlight() >= 0 && m_highlight() < m_planet.cells.size() ) {
+            m_dailyGraph->setData( m_planet.getDailyIllumination( m_highlight(), m_timeOfYear(), 100 ) );
+            m_annualGraph->setData( m_planet.getAnnualIllumination( m_highlight(), 100 ) );
+        }
+        m_dailyGraph->setMarkerPosition( m_timeOfDay() );
+        m_annualGraph->setMarkerPosition( m_timeOfYear() );
     }
-    m_dailyGraph->setMarkerPosition( m_timeOfDay() );
-    m_annualGraph->setMarkerPosition( m_timeOfYear() );
 }
 
 

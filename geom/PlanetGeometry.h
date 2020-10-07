@@ -71,6 +71,8 @@ private:
 
 
     vl::fvec4 colFunc9( const Planet::cell& cell );
+
+    vl::fvec4 colFuncPlateColor( const Planet::cell& cell );
 };
 
 
