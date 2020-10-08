@@ -227,6 +227,8 @@ void MainWindow::initEvent() {
 
     // mode 6: climate
     m_parameters[6].emplace_back( ringsRenderMode );
+    m_parameters[6].emplace_back( cellsRenderMode );
+    m_parameters[6].emplace_back( wireFrameRenderMode );
     m_parameters[6].emplace_back( moisture );
     m_parameters[6].emplace_back( axialTilt );
     m_parameters[6].emplace_back( timeOfYear );
@@ -605,6 +607,7 @@ void MainWindow::updateText() {
         }
         if ( m_planet.phase() == 6 ) {
             format += "illum: %n\n"
+                      "atmos: %n\n"
                       "annual: %n\n"
                       "temp: %n\n";
         }
@@ -661,6 +664,7 @@ void MainWindow::updateText() {
         }
         if ( m_planet.phase() == 6 ) {
             say << c.illumination
+                << c.atmosphere
                 << c.annualIllumination
                 << c.temperature;
         }

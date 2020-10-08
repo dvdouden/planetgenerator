@@ -91,7 +91,9 @@ add_executable(
         util/PerlinNoise.h
         util/PerlinNoise.cpp
         geom/PlateOriginGeometry.cpp
-        geom/PlateOriginGeometry.h)
+        geom/PlateOriginGeometry.h
+        util/keys.h
+        util/keys.cpp)
 
 if (MINGW)
     target_link_libraries(PlanetGenerator ${VL_LIBRARIES} ${OPENGL_LIBRARIES} -static)

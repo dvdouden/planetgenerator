@@ -8,6 +8,7 @@
 
 #include <vlCore/vlnamespace.hpp>
 #include <vlCore/Say.hpp>
+#include "keys.h"
 
 template<typename T, typename S>
 struct parameter {
@@ -146,7 +147,7 @@ struct parameterBinding : public parameterBindingBase {
     }
 
     std::string name() const override {
-        return param.name;
+        return param.name + "(" + utils::keys::name(decKey) + "," + utils::keys::name(incKey) + ")";
     }
 
     std::string format() const override {
@@ -272,7 +273,7 @@ struct boolParameterBinding : public parameterBindingBase {
     }
 
     std::string name() const override {
-        return param.name;
+        return param.name + "(" + utils::keys::name(key) + ")";
     }
 
     std::string format() const override {

@@ -869,6 +869,7 @@ void Planet::generateColorMap() {
 void Planet::calcLight( const vl::fvec3& ray ) {
     for ( auto& cell : cells ) {
         cell.illumination = (float)getIllumination( ray, points[cell.point] );
+        cell.atmosphere = (float)getAtmosphericDistance( ray, points[cell.point] );
     }
 }
 
@@ -1170,6 +1171,58 @@ float Planet::createNoise( const vl::fvec3& v, PerlinNoise<float>& perlin ) {
     }
 
     return noiseIntensity() * noise;
+}
+
+
+double Planet::getAtmosphericDistance( const vl::fvec3& sun, const vl::fvec3& p ) {
+    // https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection
+
+    // sooo, as it turns out, we can simplify the ray-sphere check by a LOT
+    // given the following:
+    // sphere center is always 0,0
+    // ray origin is always 0,1
+    //
+    // vl::fvec3 L = center - orig;
+    // can be reduced to
+    // vl::fvec3L = 0,-1
+    //
+    // float tca = vl::dot( L, dir );
+    // since dot == L.x*dir.x + L.y*dir.Y
+    // and L.x is always 0 and L.y is always -1
+    // vl::dot( L, dir ) == 0*dir.x + -1*dir.y
+    // so
+    // vl::dot( L, dir ) == -dir.y
+    //
+    // dir = vl::fvec2( sin(angle), cos(angle) )
+    // angle = acos( vl::dot( sun, p ) )
+    // since we only need dir.y
+    // dir.y = cos( acos( vl::dot( sun, p ) )
+    // so
+    // dir.y = vl::dot( sun, p )
+    // so
+    // float tca = -vl::dot( sun, p )
+    //
+    // float d2 = vl::dot( L, L ) - tca * tca;
+    // can be simplified since L is constant
+    // vl::dot( L, L ) = 0*0 + -1*-1 = 1
+    // so
+    // float d2 = 1.0f - tca * tca
+    //
+    // float thc = std::sqrt(radius2 - d2);
+    // remains the same
+    //
+    // t0 = tca - thc;
+    // will always be negative since our origin is inside the sphere
+    //
+    // t1 = tca + thc;
+    // is what we're looking for
+
+    float radius2 = 1.1f * 1.1f;
+
+    float tca = vl::dot( sun, p );
+    float d2 = 1.0f - tca * tca; // 1.0f = dot( L, L )
+    float thc = std::sqrt(radius2 - d2 );
+    return thc - tca;
 }
 
 

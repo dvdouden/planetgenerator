@@ -46,16 +46,19 @@ private:
 
     typedef vl::fvec4 (PlanetGeometry::*colFunc)( const Planet::cell& );
 
-    vl::fvec4 colFunc1( const Planet::cell& cell );
+    vl::fvec4 colFuncCellPosition( const Planet::cell& cell );
     vl::fvec4 colFunc2( const Planet::cell& cell );
     vl::fvec4 colFunc3( const Planet::cell& cell );
     vl::fvec4 colFunc4( const Planet::cell& cell );
     vl::fvec4 colFunc5( const Planet::cell& cell );
-    vl::fvec4 colFunc6( const Planet::cell& cell );
-    vl::fvec4 colFunc7( const Planet::cell& cell );
-    vl::fvec4 colFunc8( const Planet::cell& cell );
+    vl::fvec4 colFuncCellIlluminated( const Planet::cell& cell );
+    vl::fvec4 colFuncCellAnnualIllumination( const Planet::cell& cell );
+    vl::fvec4 colFuncCellTemperature( const Planet::cell& cell );
+    vl::fvec4 colFuncCellForce( const Planet::cell& cell );
+    vl::fvec4 colFuncPlatePosition( const Planet::cell& cell );
+    vl::fvec4 colFuncPlateTypeColor( const Planet::cell& cell );
     vl::fvec4 colFuncDefault( const Planet::cell& cell );
-
+    vl::fvec4 colFuncCellMotion( const Planet::cell& cell );
 
     Planet& m_planet;
     int m_colorMode = 0;
@@ -70,9 +73,11 @@ private:
     void colorCell( const Planet::cell& cell, vl::fvec4 rgb, vl::fvec4*& cols );
 
 
-    vl::fvec4 colFunc9( const Planet::cell& cell );
+    vl::fvec4 colFuncCellDivergentForce( const Planet::cell& cell );
 
-    vl::fvec4 colFuncPlateColor( const Planet::cell& cell );
+    vl::fvec4 colFuncCellConvergentForce( const Planet::cell& cell );
+
+    vl::fvec4 colFuncCellElevation( const Planet::cell& cell );
 };
 
 

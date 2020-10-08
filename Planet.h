@@ -46,6 +46,7 @@ public:
         float dCst;
         float dOcn;
         float illumination;
+        float atmosphere;
         float annualIllumination;
         float temperature;
         std::size_t r;
@@ -84,6 +85,7 @@ public:
     numericParameter<float> noiseIntensity = { 0.1f, "noise intensity" };
     numericParameter<int> noiseOctaves = { 4, "noise octaves" };
     numericParameter<float> noiseScale = { 2.0f, "noise scale" };
+    numericParameter<float> atmosphere = {0.1f, "thickness of atmosphere" };
 
     double nScale;
     tree kdTree;
@@ -182,6 +184,16 @@ private:
 
     void calculateCoords();
 
+    /**
+     * Returns the angle between two vectors in radians
+     *
+     * Quickly calculates the angle between two given vectors
+     * Will take possible rounding errors into account without causing NaN errors
+     *
+     * @param  v1 vector 1
+     * @param  v2 vector 2
+     * @return angle between v1 and v2 in radians
+     */
     static double safeGetAngle( const vl::fvec3& v1, const vl::fvec3& v2 );
     static double getGreatCircleDistance( const vl::fvec3& v1, const vl::fvec3& v2);
     static double getBearing( const vl::fvec3& v1, const vl::fvec3& v2);
@@ -191,6 +203,15 @@ private:
     static vl::fvec3 destinationPoint( const vl::fvec3& v, double distance, double bearing );
 
     double getIllumination( const vl::fvec3& sun, const vl::fvec3& p );
+
+    /**
+     * Calculates the distance sunlight has to travel through the atmosphere before reaching a given point on the planet
+     *
+     * @param  sun unity vector towards sun from center of planet
+     * @param  p point on planet
+     * @return distance between point of planet and edge of atmosphere
+     */
+    double getAtmosphericDistance( const vl::fvec3& sun, const vl::fvec3& p );
 
 
     static double angleTo2( const vl::fvec3& v1, const vl::fvec3& v2, const vl::fvec3& n );
